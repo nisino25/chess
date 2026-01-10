@@ -19,7 +19,7 @@
                 <div
                     v-for="piece in pieces"
                     :key="piece.id"
-                    class="piece absolute text-6xl transition-all duration-300 cursor-pointer"
+                    class="piece absolute sm:text-4xl md:text-6xl transition-all duration-300 cursor-pointer"
                     :style="{ top: `${piece.row * 12.5}%`, left: `${piece.col * 12.5}%` }"
                     @click.stop="selectPiece(piece)"
                     :class="selected && selected.id === piece.id ? 'ring-4 ring-indigo-400' : ''"
