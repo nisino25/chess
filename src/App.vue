@@ -19,7 +19,7 @@
                 <div
                     v-for="piece in pieces"
                     :key="piece.id"
-                    class="piece absolute sm:text-5xl md:text-6xl transition-all duration-300 cursor-pointer"
+                    class="piece absolute text-5xl transition-all duration-300 cursor-pointer"
                     :style="{ top: `${piece.row * 12.5}%`, left: `${piece.col * 12.5}%` }"
                     @click.stop="selectPiece(piece)"
                     :class="selected && selected.id === piece.id ? 'ring-4 ring-indigo-400' : ''"
@@ -62,7 +62,7 @@ export default {
             const pieces = []
 
             // Black pieces
-            const blackBack = ['♜','♞','♛','♝','♚','♝','♞','♜']
+            const blackBack = ['♜','♞','♝','♛','♚','♝','♞','♜']
             const blackPawns = Array(8).fill('♟')
             blackBack.forEach((p, i) => pieces.push({ id: `b${i}`, type: p, row: 0, col: i, color: 'black' }))
             blackPawns.forEach((p, i) => pieces.push({ id: `bp${i}`, type: p, row: 1, col: i, color: 'black' }))
