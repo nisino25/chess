@@ -9,24 +9,30 @@
                 <div
                     v-for="square in boardSquares"
                     :key="`${square.row}-${square.col}`"
-                    :class="squareClass(square.row, square.col)"
+                    :class="[
+                        squareClass(square.row, square.col),
+                        isPossibleMove(square.row, square.col) ? 'blink' : ''
+                    ]"
                     @click="moveToTile(square.row, square.col)"
                 ></div>
             </div>
 
+
+
             <!-- Pieces layer -->
-            <div class="absolute top-0 left-0 w-full h-full">
-                <div
-                    v-for="piece in pieces"
-                    :key="piece.id"
-                    class="piece absolute text-7xl transition-all duration-300 cursor-pointer"
-                    :style="{ top: `${piece.row * 12.5}%`, left: `${piece.col * 12.5}%` }"
-                    @click.stop="selectPiece(piece)"
-                    :class="selected && selected.id === piece.id ? 'ring-4 ring-indigo-400' : ''"
-                >
-                    {{ piece.type }}
-                </div>
-            </div>
+<div class="absolute top-0 left-0 w-full h-full pointer-events-none">
+    <div
+        v-for="piece in pieces"
+        :key="piece.id"
+        class="piece absolute text-7xl transition-all duration-300 cursor-pointer pointer-events-auto"
+        :style="{ top: `${piece.row * 12.5}%`, left: `${piece.col * 12.5}%` }"
+        @click.stop="selectPiece(piece)"
+        :class="selected && selected.id === piece.id ? 'ring-4 ring-indigo-400' : ''"
+    >
+        {{ piece.type }}
+    </div>
+</div>
+
         </div>
     </div>
 </template>
@@ -44,6 +50,7 @@ export default {
             selected: null,
             currentTurn: 'white',
             winner: null,
+            possibleMoves: [] 
         }
     },
     mounted() {
@@ -94,12 +101,14 @@ export default {
                     return
                 }
                 this.selected = piece
+                this.possibleMoves = this.getPossibleMoves(piece)
             } else {
                 // Move selected piece to clicked piece's square if different
                 if (this.selected.id !== piece.id) {
                     this.movePiece(this.selected, piece.row, piece.col)
                 }
                 this.selected = null
+                this.possibleMoves = []
             }
         },
         moveToTile(row, col) {
@@ -123,19 +132,33 @@ export default {
             piece.row = row
             piece.col = col
             // ✅ Check if king is captured
-            if (targetPiece.type === '♔' || targetPiece.type === '♚') {
+            if (targetPiece?.type === '♔' || targetPiece?.type === '♚') {
                 this.winner = piece.color
                 alert(`${this.winner} wins!`)
                 return
             }
             this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white'
+            this.possibleMoves = []
         },
-        isMoveValid(piece, row, col) {
-            const targetTile = { row, col }
-            console.log('isMoveValid', piece, targetTile);
-            // Basic move validation can be added here
-            return true
-        }
+        isPossibleMove(row, col) {
+            return this.possibleMoves.some(
+            m => m.row === row && m.col === col
+            )
+        },
+        getPossibleMoves(piece) {
+            // TEMP: allow move anywhere (for testing)
+            const moves = []
+
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    if (row !== piece.row || col !== piece.col) {
+                        moves.push({ row, col })
+                    }
+                }
+            }
+
+            return moves
+        },
     }
 }
 </script>
@@ -148,4 +171,18 @@ export default {
     align-items: center;
     justify-content: center;
 }
+
+@keyframes blink {
+    0%, 100% {
+        opacity: 0.4;
+    }
+    50% {
+        opacity: 0.9;
+    }
+}
+
+.blink {
+    animation: blink 1.2s ease-in-out infinite;
+}
+
 </style>
