@@ -2,6 +2,13 @@
     <div class="p-4 flex flex-col items-center">
         <h2 class="mb-4 text-lg font-medium">Current: {{ currentTurn }}'s turn</h2>
         <h3 v-if="winner" class="font-xl font-bold font-red">Winner: {{ winner }}</h3>
+        <hr>
+        <button
+        @click="undoMove"
+        class="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 transition"
+    >
+        Undo Move
+    </button>
 
         <div class=" w-[92.5vw] aspect-square absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-4 border-gray-200 shadow-lg">
             <!-- Board squares -->
@@ -50,7 +57,9 @@ export default {
             selected: null,
             currentTurn: 'white',
             winner: null,
-            possibleMoves: [] 
+            possibleMoves: [],
+
+            moveLog: [] 
         }
     },
     mounted() {
@@ -112,11 +121,12 @@ export default {
             }
         },
         moveToTile(row, col) {
-            console.log('moveToTile', row, col);
             if (this.selected) {
-                    this.movePiece(this.selected, row, col)
-                    this.selected = null
+                this.movePiece(this.selected, row, col)
+                this.selected = null
             }
+            this.possibleMoves = []
+
         },
         // Move piece
         movePiece(piece, row, col) {
@@ -129,8 +139,22 @@ export default {
                 if(this.selected.color === targetPiece.color) return false
                 this.pieces.splice(targetIdx, 1)
             }
+            // save old position for log
+            const moveRecord = {
+                pieceId: piece.id,
+                from: { row: piece.row, col: piece.col },
+                to: { row, col },
+                captured: targetPiece
+                    ? { pieceId: targetPiece.id, type: targetPiece.type, color: targetPiece.color }
+                    : null,
+                turn: piece.color,
+                promotion: null
+            }
             piece.row = row
             piece.col = col
+
+            this.moveLog.push(moveRecord)
+
             // ✅ Check if king is captured
             if (targetPiece?.type === '♔' || targetPiece?.type === '♚') {
                 this.winner = piece.color
@@ -159,6 +183,30 @@ export default {
 
             return moves
         },
+        undoMove() {
+            const lastMove = this.moveLog.pop()
+            if (!lastMove) return
+
+            // move piece back
+            const piece = this.pieces.find(p => p.id === lastMove.pieceId)
+            piece.row = lastMove.from.row
+            piece.col = lastMove.from.col
+
+            // restore captured piece if any
+            if (lastMove.captured) {
+                this.pieces.push({
+                    id: lastMove.captured.pieceId,
+                    type: lastMove.captured.type,
+                    color: lastMove.captured.color,
+                    row: lastMove.to.row,
+                    col: lastMove.to.col
+                })
+            }
+
+            this.currentTurn = lastMove.turn
+            this.winner = null
+        }
+
     }
 }
 </script>
