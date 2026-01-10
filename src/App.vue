@@ -27,18 +27,18 @@
 
 
             <!-- Pieces layer -->
-<div class="absolute top-0 left-0 w-full h-full pointer-events-none">
-    <div
-        v-for="piece in pieces"
-        :key="piece.id"
-        class="piece absolute text-7xl transition-all duration-300 cursor-pointer pointer-events-auto"
-        :style="{ top: `${piece.row * 12.5}%`, left: `${piece.col * 12.5}%` }"
-        @click.stop="selectPiece(piece)"
-        :class="selected && selected.id === piece.id ? 'ring-4 ring-indigo-400' : ''"
-    >
-        {{ piece.type }}
-    </div>
-</div>
+            <div class="absolute top-0 left-0 w-full h-full pointer-events-none">
+                <div
+                    v-for="piece in pieces"
+                    :key="piece.id"
+                    class="piece absolute text-5xl transition-all duration-300 cursor-pointer pointer-events-auto"
+                    :style="{ top: `${piece.row * 12.5}%`, left: `${piece.col * 12.5}%` }"
+                    @click.stop="selectPiece(piece)"
+                    :class="selected && selected.id === piece.id ? 'ring-4 ring-indigo-400' : ''"
+                >
+                    {{ piece.type }}
+                </div>
+            </div>
 
         </div>
     </div>
