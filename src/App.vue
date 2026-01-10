@@ -1,9 +1,9 @@
 <template>
     <div class="p-4 flex flex-col items-center">
-        <h2 class="mb-4 text-lg font-medium">Chess Board: {{ currentTurn }} turn</h2>
+        <h2 class="mb-4 text-lg font-medium">Current: {{ currentTurn }}'s turn</h2>
         <h3 v-if="winner" class="font-xl font-bold font-red">Winner: {{ winner }}</h3>
 
-        <div class="relative w-[92.5vw] aspect-square">
+        <div class=" w-[92.5vw] aspect-square absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-4 border-gray-200 shadow-lg">
             <!-- Board squares -->
             <div class="grid grid-cols-8 grid-rows-8 w-full h-full">
                 <div
@@ -19,7 +19,7 @@
                 <div
                     v-for="piece in pieces"
                     :key="piece.id"
-                    class="piece absolute text-5xl transition-all duration-300 cursor-pointer"
+                    class="piece absolute text-7xl transition-all duration-300 cursor-pointer"
                     :style="{ top: `${piece.row * 12.5}%`, left: `${piece.col * 12.5}%` }"
                     @click.stop="selectPiece(piece)"
                     :class="selected && selected.id === piece.id ? 'ring-4 ring-indigo-400' : ''"
@@ -46,6 +46,11 @@ export default {
             winner: null,
         }
     },
+    mounted() {
+        console.clear()
+        console.log('Initial pieces:', this.pieces)
+
+    },
     methods: {
         // Create 8x8 squares
         initBoardSquares() {
@@ -63,7 +68,7 @@ export default {
 
             // Black pieces
             const blackBack = ['♜','♞','♝','♛','♚','♝','♞','♜']
-            const blackPawns = Array(8).fill('♟')
+            const blackPawns = Array(8).fill('♟︎')
             blackBack.forEach((p, i) => pieces.push({ id: `b${i}`, type: p, row: 0, col: i, color: 'black' }))
             blackPawns.forEach((p, i) => pieces.push({ id: `bp${i}`, type: p, row: 1, col: i, color: 'black' }))
 
@@ -83,7 +88,6 @@ export default {
         },
         // Click piece
         selectPiece(piece) {
-            console.log('selectPiece', piece);
             if (!this.selected) {
                 if(this.currentTurn !== piece.color) {
                     alert("It's not your turn!")
