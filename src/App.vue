@@ -115,7 +115,11 @@ export default {
             promotionPiece: null,
             promotionMoveRecord: null,
 
-            moveSound: null,
+            audioEnabled: true,
+            moveAudio1: null,
+            moveAudio2: null,
+            toggleSound: false,
+
 
 
             moveLog: [] ,
@@ -125,11 +129,18 @@ export default {
         console.clear()
         console.log('Initial pieces:', this.pieces);
 
-        this.moveSound = new Audio('/move.mp3')
+        // Create the audio objects
+        this.moveAudio1 = new Audio('/move1.mp3')
+        this.moveAudio2 = new Audio('/move2.mp3')
 
-        // Unlock Safari autoplay
+        this.moveAudio1.volume = 0.5
+        this.moveAudio2.volume = 0.5
+
+        // Safari/iOS requires a user interaction first
+        // So we wait for the first click to unlock the audio
         const unlockAudio = () => {
-            this.moveSound.play().catch(() => {})
+            // Play a tiny silent sound to unlock
+            this.moveAudio1.play().catch(() => {})
             window.removeEventListener('click', unlockAudio)
         }
         window.addEventListener('click', unlockAudio)
@@ -238,6 +249,7 @@ export default {
 
             // Add move to log AFTER promotion check
             this.moveLog.push(moveRecord)
+            this.playMoveSound();
 
             // Check for king capture
             if (targetPiece?.type === 'king') {
@@ -246,7 +258,7 @@ export default {
                 return
             }
 
-            this.playMoveSound();
+            
 
 
             this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white'
@@ -332,14 +344,32 @@ export default {
             // Switch turn
             this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white'
         },
-        playMoveSound() {
-            if (!this.moveSound) return
-            // Safari needs currentTime reset before play
-            this.moveSound.currentTime = 0
-            this.moveSound.play().catch(err => {
-                console.log('Audio play blocked:', err)
-            })
+        enableAudio() {
+            this.audioEnabled = true
+
+            // initial Audio objects just to unlock
+            this.moveAudio1 = new Audio('/move1.mp3')
+            this.moveAudio2 = new Audio('/move2.mp3')
+
+            // play once to unlock
+            this.moveAudio1.play().catch(()=>{})
         },
+        playMoveSound() {
+            console.log('playMoveSound called')
+
+            if (!this.audioEnabled) return
+
+            // Alternate between the two audio sources
+            const src = this.toggleSound ? '/move1.mp3' : '/move2.mp3'
+            console.log(src)
+
+            const sound = new Audio(src)
+            sound.volume = 0.5
+            sound.play().catch(() => {})
+
+            this.toggleSound = !this.toggleSound
+        }
+
     }
 }
 </script>
