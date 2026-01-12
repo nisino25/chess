@@ -18,7 +18,7 @@
                      @click="undoMove"
                      class="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 transition"
                  >
-                     Undo Move
+                    <i class="fa-solid fa-rotate-left"></i>
                  </button>
                  <button
                      @click="resetBoard"
@@ -56,7 +56,7 @@
                 <div
                     v-for="piece in pieces"
                     :key="piece.id"
-                    class="piece absolute text-5xl transition-all duration-300 cursor-pointer pointer-events-auto"
+                    class="piece absolute text-[35px] md:text-[50px] transition-all duration-300 cursor-pointer pointer-events-auto"
                     :style="{ top: `${piece.row * 12.5}%`, left: `${piece.col * 12.5}%` }"
                     @click.stop="selectPiece(piece)"
                     :class="selected && selected.id === piece.id ? 'ring-4 ring-indigo-400' : ''"
