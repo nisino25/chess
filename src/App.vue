@@ -35,7 +35,7 @@
         <h3 v-if="winner" class="font-xl font-bold font-red">Winner: {{ winner }}</h3>
         <hr>
 
-        <div class="w-[92.5vw] aspect-square absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-4 border-gray-400 shadow-lg">
+        <div class="max-w-[725px] w-[92.5vw] aspect-square absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-4 border-gray-400 shadow-lg">
             <!-- Board squares -->
             <div class="grid grid-cols-8 grid-rows-8 w-full h-full">
                 <div
@@ -212,6 +212,12 @@ export default {
         },
         // Move piece
         movePiece(piece, row, col) {
+            // ❌ Not a legal move → stop
+            const isLegalMove = this.possibleMoves.some(
+                m => m.row === row && m.col === col
+            )
+            if (!isLegalMove) return false
+
             // Check if another piece is on that square
             const targetIdx = this.pieces.findIndex(p => p.row === row && p.col === col)
             const targetPiece = this.pieces[targetIdx]
@@ -265,25 +271,199 @@ export default {
             this.possibleMoves = []
         },
 
+        getPieceAt(row, col) {
+            return this.pieces.find(p => p.row === row && p.col === col)
+        },
+
         isPossibleMove(row, col) {
             return this.possibleMoves.some(
             m => m.row === row && m.col === col
             )
         },
         getPossibleMoves(piece) {
-            // TEMP: allow move anywhere (for testing)
             const moves = []
 
-            for (let row = 0; row < 8; row++) {
-                for (let col = 0; col < 8; col++) {
-                    if (row !== piece.row || col !== piece.col) {
-                        moves.push({ row, col })
+            if (piece.type === 'bishop') {
+                const directions = [
+                    { r: 1, c: 1 },
+                    { r: 1, c: -1 },
+                    { r: -1, c: 1 },
+                    { r: -1, c: -1 }
+                ]
+
+                directions.forEach(dir => {
+                    let r = piece.row + dir.r
+                    let c = piece.col + dir.c
+
+                    while (r >= 0 && r < 8 && c >= 0 && c < 8) {
+                        const target = this.getPieceAt(r, c)
+
+                        if (!target) {
+                            moves.push({ row: r, col: c })
+                        } else {
+                            if (target.color !== piece.color) {
+                                moves.push({ row: r, col: c }) // capture
+                            }
+                            break // blocked
+                        }
+
+                        r += dir.r
+                        c += dir.c
+                    }
+                })
+            } else if (piece.type === 'rook') {
+                const directions = [
+                    { r: 1, c: 0 },
+                    { r: -1, c: 0 },
+                    { r: 0, c: 1 },
+                    { r: 0, c: -1 }
+                ]
+
+                directions.forEach(dir => {
+                    let r = piece.row + dir.r
+                    let c = piece.col + dir.c
+
+                    while (r >= 0 && r < 8 && c >= 0 && c < 8) {
+                        const target = this.getPieceAt(r, c)
+
+                        if (!target) {
+                            moves.push({ row: r, col: c })
+                        } else {
+                            if (target.color !== piece.color) {
+                                moves.push({ row: r, col: c }) // capture
+                            }
+                            break // blocked
+                        }
+
+                        r += dir.r
+                        c += dir.c
+                    }
+                })
+            } else if (piece.type === 'knight') {
+                const directions = [
+                    { r: 2, c: 1 },
+                    { r: 2, c: -1 },
+                    { r: -2, c: 1 },
+                    { r: -2, c: -1 },
+                    { r: 1, c: 2 },
+                    { r: 1, c: -2 },
+                    { r: -1, c: 2 },
+                    { r: -1, c: -2 }
+                ]
+
+                directions.forEach(dir => {
+                    const r = piece.row + dir.r
+                    const c = piece.col + dir.c
+
+                    // board check
+                    if (r < 0 || r >= 8 || c < 0 || c >= 8) return
+
+                    const target = this.getPieceAt(r, c)
+
+                    // same team → blocked
+                    if (target && target.color === piece.color) return
+
+                    // empty or enemy → legal
+                    moves.push({ row: r, col: c })
+                })
+            } else if (piece.type === 'queen') {
+                const directions = [
+                    // rook
+                    { r: 1, c: 0 }, { r: -1, c: 0 },
+                    { r: 0, c: 1 }, { r: 0, c: -1 },
+                    // bishop
+                    { r: 1, c: 1 }, { r: 1, c: -1 },
+                    { r: -1, c: 1 }, { r: -1, c: -1 }
+                ]
+
+                directions.forEach(dir => {
+                    let r = piece.row + dir.r
+                    let c = piece.col + dir.c
+
+                    while (r >= 0 && r < 8 && c >= 0 && c < 8) {
+                        const target = this.getPieceAt(r, c)
+
+                        if (!target) {
+                            moves.push({ row: r, col: c })
+                        } else {
+                            // enemy → capture allowed
+                            if (target.color !== piece.color) {
+                                moves.push({ row: r, col: c })
+                            }
+                            break // blocked by any piece
+                        }
+
+                        r += dir.r
+                        c += dir.c
+                    }
+                })
+            } else if (piece.type === 'king') {
+                const directions = [
+                    { r: 1, c: 0 }, { r: -1, c: 0 },
+                    { r: 0, c: 1 }, { r: 0, c: -1 },
+                    { r: 1, c: 1 }, { r: 1, c: -1 },
+                    { r: -1, c: 1 }, { r: -1, c: -1 }
+                ]
+
+                directions.forEach(dir => {
+                    const r = piece.row + dir.r
+                    const c = piece.col + dir.c
+
+                    // board boundaries
+                    if (r < 0 || r >= 8 || c < 0 || c >= 8) return
+
+                    const target = this.getPieceAt(r, c)
+
+                    // same color → blocked
+                    if (target && target.color === piece.color) return
+
+                    // empty or enemy → legal
+                    moves.push({ row: r, col: c })
+                })
+            } else if (piece.type === 'pawn') {
+                const dir = piece.color === 'white' ? -1 : 1 // white moves up, black down
+                const startRow = piece.color === 'white' ? 6 : 1
+
+                // ----------------
+                // 1. Forward moves
+                // ----------------
+
+                // 1 step forward
+                const oneStepRow = piece.row + dir
+                if (!this.getPieceAt(oneStepRow, piece.col)) {
+                    moves.push({ row: oneStepRow, col: piece.col })
+
+                    // 2 steps forward if at starting row
+                    const twoStepRow = piece.row + dir * 2
+                    if (piece.row === startRow && !this.getPieceAt(twoStepRow, piece.col)) {
+                        moves.push({ row: twoStepRow, col: piece.col })
                     }
                 }
+
+                // ----------------
+                // 2. Captures (diagonal)
+                // ----------------
+                [-1, 1].forEach(dc => {
+                    const r = piece.row + dir
+                    const c = piece.col + dc
+
+                    // check board
+                    if (r < 0 || r >= 8 || c < 0 || c >= 8) return
+
+                    const target = this.getPieceAt(r, c)
+                    // only capture enemies
+                    if (target && target.color !== piece.color) {
+                        moves.push({ row: r, col: c })
+                    }
+                })
             }
+
+
+
 
             return moves
         },
+
         undoMove() {
             const lastMove = this.moveLog.pop()
             if (!lastMove) return
