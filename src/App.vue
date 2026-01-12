@@ -125,11 +125,14 @@ export default {
         console.clear()
         console.log('Initial pieces:', this.pieces);
 
-        const context = new (window.AudioContext || window.webkitAudioContext)()
-        fetch('/move.mp3')
-            .then(res => res.arrayBuffer())
-            .then(buffer => context.decodeAudioData(buffer))
-            .then(decoded => { this.moveSoundBuffer = decoded; this.audioContext = context })
+        this.moveSound = new Audio('/move.mp3')
+
+        // Unlock Safari autoplay
+        const unlockAudio = () => {
+            this.moveSound.play().catch(() => {})
+            window.removeEventListener('click', unlockAudio)
+        }
+        window.addEventListener('click', unlockAudio)
 
     },
     methods: {
@@ -330,10 +333,12 @@ export default {
             this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white'
         },
         playMoveSound() {
-            const source = this.audioContext.createBufferSource()
-            source.buffer = this.moveSoundBuffer
-            source.connect(this.audioContext.destination)
-            source.start(0)
+            if (!this.moveSound) return
+            // Safari needs currentTime reset before play
+            this.moveSound.currentTime = 0
+            this.moveSound.play().catch(err => {
+                console.log('Audio play blocked:', err)
+            })
         },
     }
 }
