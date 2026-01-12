@@ -127,6 +127,13 @@ export default {
 
         this.moveSound = new Audio('/move.mp3')
 
+        // Unlock Safari autoplay
+        const unlockAudio = () => {
+            this.moveSound.play().catch(() => {})
+            window.removeEventListener('click', unlockAudio)
+        }
+        window.addEventListener('click', unlockAudio)
+
     },
     methods: {
         // Create 8x8 squares
@@ -239,8 +246,7 @@ export default {
                 return
             }
 
-            this.moveSound.currentTime = 0
-            this.moveSound.play()
+            this.playMoveSound();
 
 
             this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white'
@@ -325,6 +331,14 @@ export default {
 
             // Switch turn
             this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white'
+        },
+        playMoveSound() {
+            if (!this.moveSound) return
+            // Safari needs currentTime reset before play
+            this.moveSound.currentTime = 0
+            this.moveSound.play().catch(err => {
+                console.log('Audio play blocked:', err)
+            })
         },
     }
 }
