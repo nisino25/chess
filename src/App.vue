@@ -559,20 +559,15 @@ export default {
 }
 </script>
 
-<style scoped>
-html{
-    background-color: #4fc08d;
+<style>
+html,
+body {
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    overflow: hidden;
 }
 
-body {
-  margin:0;
-  padding:0;
-  height: 100vh;
-  overflow: hidden;
-  
-  
-  /* background-color: red; */
-}
 .piece {
     width: 12.5%;
     height: 12.5%;
