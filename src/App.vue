@@ -57,7 +57,11 @@
                     v-for="piece in pieces"
                     :key="piece.id"
                     class="piece absolute text-[35px] md:text-[50px] transition-all duration-300 cursor-pointer pointer-events-auto"
-                    :style="{ top: `${piece.row * 12.5}%`, left: `${piece.col * 12.5}%` }"
+                    :style="{
+                        top: `${piece.row * 12.5}%`,
+                        left: `${piece.col * 12.5}%`,
+                        transform: piece.color === 'black' ? 'rotate(180deg)' : 'none'
+                    }"
                     @click.stop="selectPiece(piece)"
                     :class="selected && selected.id === piece.id ? 'ring-4 ring-indigo-400' : ''"
                 >
@@ -261,6 +265,7 @@ export default {
             if (targetPiece?.type === 'king') {
                 this.winner = piece.color
                 alert(`${this.winner} wins!`)
+                alert(JSON.stringify(this.moveLog, null, 2))
                 return
             }
 
@@ -579,6 +584,7 @@ body {
 @keyframes blink {
     0%, 100% {
         opacity: 0.4;
+        background: gold;
     }
     50% {
         opacity: 0.9;
