@@ -290,7 +290,8 @@ export default {
           const toSquare = cols[move.to.col] + rows[move.to.row];
         
           // Castling
-          // if (move.p)  let notation = '';
+          // if (move.p)  
+          let notation = '';
         
           if (pieceLetter) {
             notation += pieceLetter;
