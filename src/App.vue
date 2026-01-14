@@ -166,15 +166,15 @@ export default {
             const blackBack = ['rook','knight','bishop','queen','king','bishop','knight','rook']
             const blackPawns = Array(8).fill('pawn')
 
-            blackBack.forEach((p, i) => pieces.push({ id: `b${i}`, type: p, row: 0, col: i, color: 'black' }))
-            blackPawns.forEach((p, i) => pieces.push({ id: `bp${i}`, type: p, row: 1, col: i, color: 'black' }))
+            blackBack.forEach((p, i) => pieces.push({ id: `b${i}`, type: p, row: 0, col: i, color: 'black',hasMoved: false  }))
+            blackPawns.forEach((p, i) => pieces.push({ id: `bp${i}`, type: p, row: 1, col: i, color: 'black', hasMoved: false  }))
 
             // White pieces
             const whitePawns = Array(8).fill('pawn')
             const whiteBack = ['rook','knight','bishop','queen','king','bishop','knight','rook']
 
-            whitePawns.forEach((p, i) => pieces.push({ id: `wp${i}`, type: p, row: 6, col: i, color: 'white' }))
-            whiteBack.forEach((p, i) => pieces.push({ id: `w${i}`, type: p, row: 7, col: i, color: 'white' }))
+            whitePawns.forEach((p, i) => pieces.push({ id: `wp${i}`, type: p, row: 6, col: i, color: 'white', hasMoved: false  }))
+            whiteBack.forEach((p, i) => pieces.push({ id: `w${i}`, type: p, row: 7, col: i, color: 'white', hasMoved: false  }))
 
             return pieces
         },
@@ -223,6 +223,11 @@ export default {
             const targetIdx = this.pieces.findIndex(p => p.row === row && p.col === col)
             const targetPiece = this.pieces[targetIdx]
 
+            // try caslitng
+            if (piece.type === 'king' && Math.abs(col - piece.col) === 2) {
+                return this.tryCastling(piece, row, col)
+            }
+
             // Same color? stop
             if (targetIdx !== -1 && this.selected.color === targetPiece.color) return false
 
@@ -245,6 +250,7 @@ export default {
 
             piece.row = row
             piece.col = col
+            piece.hasMoved = true
 
             // Check for pawn promotion **after capturing**
             if (piece.type === 'pawn' && (row === 0 || row === 7)) {
@@ -277,6 +283,30 @@ export default {
             this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white'
             this.possibleMoves = []
         },
+
+        
+        tryCastling(king, row, col) {
+            const isKingSide = col > king.col
+            const rookCol = isKingSide ? 7 : 0
+            const rook = this.pieces.find(p => p.row === row && p.col === rookCol && p.type === 'rook' && p.color === king.color)
+        
+            if (!rook || king.hasMoved || rook.hasMoved) return false
+        
+            // Check squares between king and rook are empty
+            const betweenCols = isKingSide ? [5, 6] : [1, 2, 3]
+            const isClear = betweenCols.every(c => !this.pieces.some(p => p.row === row && p.col === c))
+            if (!isClear) return false
+        
+            // TODO: Check king not in check and doesn't pass through check
+        
+            // Perform castling
+            king.col = col
+            rook.col = isKingSide ? col - 1 : col + 1
+            king.hasMoved = true
+            rook.hasMoved = true
+            return true
+        }
+
 
         getPieceAt(row, col) {
             return this.pieces.find(p => p.row === row && p.col === col)
@@ -313,187 +343,174 @@ export default {
             m => m.row === row && m.col === col
             )
         },
+        
         getPossibleMoves(piece) {
             const moves = []
-
+        
+            // Helper: check if square is empty
+            const isEmpty = (r, c) => !this.getPieceAt(r, c)
+        
+            // -----------------------
+            // Bishop
+            // -----------------------
             if (piece.type === 'bishop') {
                 const directions = [
-                    { r: 1, c: 1 },
-                    { r: 1, c: -1 },
-                    { r: -1, c: 1 },
-                    { r: -1, c: -1 }
-                ]
-
-                directions.forEach(dir => {
-                    let r = piece.row + dir.r
-                    let c = piece.col + dir.c
-
-                    while (r >= 0 && r < 8 && c >= 0 && c < 8) {
-                        const target = this.getPieceAt(r, c)
-
-                        if (!target) {
-                            moves.push({ row: r, col: c })
-                        } else {
-                            if (target.color !== piece.color) {
-                                moves.push({ row: r, col: c }) // capture
-                            }
-                            break // blocked
-                        }
-
-                        r += dir.r
-                        c += dir.c
-                    }
-                })
-            } else if (piece.type === 'rook') {
-                const directions = [
-                    { r: 1, c: 0 },
-                    { r: -1, c: 0 },
-                    { r: 0, c: 1 },
-                    { r: 0, c: -1 }
-                ]
-
-                directions.forEach(dir => {
-                    let r = piece.row + dir.r
-                    let c = piece.col + dir.c
-
-                    while (r >= 0 && r < 8 && c >= 0 && c < 8) {
-                        const target = this.getPieceAt(r, c)
-
-                        if (!target) {
-                            moves.push({ row: r, col: c })
-                        } else {
-                            if (target.color !== piece.color) {
-                                moves.push({ row: r, col: c }) // capture
-                            }
-                            break // blocked
-                        }
-
-                        r += dir.r
-                        c += dir.c
-                    }
-                })
-            } else if (piece.type === 'knight') {
-                const directions = [
-                    { r: 2, c: 1 },
-                    { r: 2, c: -1 },
-                    { r: -2, c: 1 },
-                    { r: -2, c: -1 },
-                    { r: 1, c: 2 },
-                    { r: 1, c: -2 },
-                    { r: -1, c: 2 },
-                    { r: -1, c: -2 }
-                ]
-
-                directions.forEach(dir => {
-                    const r = piece.row + dir.r
-                    const c = piece.col + dir.c
-
-                    // board check
-                    if (r < 0 || r >= 8 || c < 0 || c >= 8) return
-
-                    const target = this.getPieceAt(r, c)
-
-                    // same team → blocked
-                    if (target && target.color === piece.color) return
-
-                    // empty or enemy → legal
-                    moves.push({ row: r, col: c })
-                })
-            } else if (piece.type === 'queen') {
-                const directions = [
-                    // rook
-                    { r: 1, c: 0 }, { r: -1, c: 0 },
-                    { r: 0, c: 1 }, { r: 0, c: -1 },
-                    // bishop
                     { r: 1, c: 1 }, { r: 1, c: -1 },
                     { r: -1, c: 1 }, { r: -1, c: -1 }
                 ]
-
                 directions.forEach(dir => {
                     let r = piece.row + dir.r
                     let c = piece.col + dir.c
-
                     while (r >= 0 && r < 8 && c >= 0 && c < 8) {
                         const target = this.getPieceAt(r, c)
-
                         if (!target) {
                             moves.push({ row: r, col: c })
                         } else {
-                            // enemy → capture allowed
-                            if (target.color !== piece.color) {
-                                moves.push({ row: r, col: c })
-                            }
-                            break // blocked by any piece
+                            if (target.color !== piece.color) moves.push({ row: r, col: c })
+                            break
                         }
-
                         r += dir.r
                         c += dir.c
                     }
                 })
-            } else if (piece.type === 'king') {
+            }
+        
+            // -----------------------
+            // Rook
+            // -----------------------
+            else if (piece.type === 'rook') {
+                const directions = [
+                    { r: 1, c: 0 }, { r: -1, c: 0 },
+                    { r: 0, c: 1 }, { r: 0, c: -1 }
+                ]
+                directions.forEach(dir => {
+                    let r = piece.row + dir.r
+                    let c = piece.col + dir.c
+                    while (r >= 0 && r < 8 && c >= 0 && c < 8) {
+                        const target = this.getPieceAt(r, c)
+                        if (!target) {
+                            moves.push({ row: r, col: c })
+                        } else {
+                            if (target.color !== piece.color) moves.push({ row: r, col: c })
+                            break
+                        }
+                        r += dir.r
+                        c += dir.c
+                    }
+                })
+            }
+        
+            // -----------------------
+            // Knight
+            // -----------------------
+            else if (piece.type === 'knight') {
+                const directions = [
+                    { r: 2, c: 1 }, { r: 2, c: -1 },
+                    { r: -2, c: 1 }, { r: -2, c: -1 },
+                    { r: 1, c: 2 }, { r: 1, c: -2 },
+                    { r: -1, c: 2 }, { r: -1, c: -2 }
+                ]
+                directions.forEach(dir => {
+                    const r = piece.row + dir.r
+                    const c = piece.col + dir.c
+                    if (r < 0 || r >= 8 || c < 0 || c >= 8) return
+                    const target = this.getPieceAt(r, c)
+                    if (target && target.color === piece.color) return
+                    moves.push({ row: r, col: c })
+                })
+            }
+        
+            // -----------------------
+            // Queen
+            // -----------------------
+            else if (piece.type === 'queen') {
                 const directions = [
                     { r: 1, c: 0 }, { r: -1, c: 0 },
                     { r: 0, c: 1 }, { r: 0, c: -1 },
                     { r: 1, c: 1 }, { r: 1, c: -1 },
                     { r: -1, c: 1 }, { r: -1, c: -1 }
                 ]
-
+                directions.forEach(dir => {
+                    let r = piece.row + dir.r
+                    let c = piece.col + dir.c
+                    while (r >= 0 && r < 8 && c >= 0 && c < 8) {
+                        const target = this.getPieceAt(r, c)
+                        if (!target) {
+                            moves.push({ row: r, col: c })
+                        } else {
+                            if (target.color !== piece.color) moves.push({ row: r, col: c })
+                            break
+                        }
+                        r += dir.r
+                        c += dir.c
+                    }
+                })
+            }
+        
+            // -----------------------
+            // King (normal + castling)
+            // -----------------------
+            else if (piece.type === 'king') {
+                const directions = [
+                    { r: 1, c: 0 }, { r: -1, c: 0 },
+                    { r: 0, c: 1 }, { r: 0, c: -1 },
+                    { r: 1, c: 1 }, { r: 1, c: -1 },
+                    { r: -1, c: 1 }, { r: -1, c: -1 }
+                ]
                 directions.forEach(dir => {
                     const r = piece.row + dir.r
                     const c = piece.col + dir.c
-
-                    // board boundaries
                     if (r < 0 || r >= 8 || c < 0 || c >= 8) return
-
                     const target = this.getPieceAt(r, c)
-
-                    // same color → blocked
                     if (target && target.color === piece.color) return
-
-                    // empty or enemy → legal
                     moves.push({ row: r, col: c })
                 })
-            } else if (piece.type === 'pawn') {
-                const dir = piece.color === 'white' ? -1 : 1 // white moves up, black down
+        
+                // Castling logic
+                if (!piece.hasMoved) {
+                    const row = piece.row
+                    // King-side castling
+                    const rookRight = this.getPieceAt(row, 7)
+                    if (rookRight && rookRight.type === 'rook' && !rookRight.hasMoved) {
+                        if (isEmpty(row, 5) && isEmpty(row, 6)) {
+                            moves.push({ row, col: 6, castling: 'king-side' })
+                        }
+                    }
+                    // Queen-side castling
+                    const rookLeft = this.getPieceAt(row, 0)
+                    if (rookLeft && rookLeft.type === 'rook' && !rookLeft.hasMoved) {
+                        if (isEmpty(row, 1) && isEmpty(row, 2) && isEmpty(row, 3)) {
+                            moves.push({ row, col: 2, castling: 'queen-side' })
+                        }
+                    }
+                }
+            }
+        
+            // -----------------------
+            // Pawn
+            // -----------------------
+            else if (piece.type === 'pawn') {
+                const dir = piece.color === 'white' ? -1 : 1
                 const startRow = piece.color === 'white' ? 6 : 1
-
-                // ----------------
-                // 1. Forward moves
-                // ----------------
-
-                // 1 step forward
                 const oneStepRow = piece.row + dir
-                if (!this.getPieceAt(oneStepRow, piece.col)) {
+                if (isEmpty(oneStepRow, piece.col)) {
                     moves.push({ row: oneStepRow, col: piece.col })
-
-                    // 2 steps forward if at starting row
                     const twoStepRow = piece.row + dir * 2
-                    if (piece.row === startRow && !this.getPieceAt(twoStepRow, piece.col)) {
+                    if (piece.row === startRow && isEmpty(twoStepRow, piece.col)) {
                         moves.push({ row: twoStepRow, col: piece.col })
                     }
                 }
-
-                // ----------------
-                // 2. Captures (diagonal)
-                // ----------------
                 [-1, 1].forEach(dc => {
                     const r = piece.row + dir
                     const c = piece.col + dc
-
-                    // check board
                     if (r < 0 || r >= 8 || c < 0 || c >= 8) return
-
                     const target = this.getPieceAt(r, c)
-                    // only capture enemies
                     if (target && target.color !== piece.color) {
                         moves.push({ row: r, col: c })
                     }
                 })
             }
-
-
-
-
+        
             return moves
         },
 
