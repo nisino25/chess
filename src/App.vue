@@ -124,14 +124,11 @@ export default {
             moveAudio2: null,
             toggleSound: false,
 
-
-
             moveLog: [] ,
         }
     },
     mounted() {
         console.clear()
-        console.log('Initial pieces:', this.pieces);
 
         // Create the audio objects
         this.moveAudio1 = new Audio('/move1.mp3')
@@ -259,7 +256,7 @@ export default {
 
             // Add move to log AFTER promotion check
             // this.moveLog.push(moveRecord)
-            const algebraic = toAlgebraicNotation(moveRecord);
+            const algebraic = this.toAlgebraicNotation(moveRecord);
             this.moveLog.push(algebraic);
             console.log(this.moveLog)
 
@@ -284,7 +281,6 @@ export default {
         getPieceAt(row, col) {
             return this.pieces.find(p => p.row === row && p.col === col)
         },
-
         
         toAlgebraicNotation(move) {
           const cols = ['a','b','c','d','e','f','g','h'];
@@ -310,7 +306,6 @@ export default {
         
           return notation;
         },
-
 
         isPossibleMove(row, col) {
             return this.possibleMoves.some(
@@ -553,7 +548,7 @@ export default {
             // Push move to log AFTER promotion
             // this.moveLog.push(this.promotionMoveRecord)
             
-            const algebraic = toAlgebraicNotation(this.promotionMoveRecord);
+            const algebraic = this.toAlgebraicNotation(this.promotionMoveRecord);
             this.moveLog.push(algebraic);
             console.log(this.moveLog)
 
@@ -577,13 +572,11 @@ export default {
             this.moveAudio1.play().catch(()=>{})
         },
         playMoveSound() {
-            console.log('playMoveSound called')
 
             if (!this.audioEnabled) return
 
             // Alternate between the two audio sources
             const src = this.toggleSound ? '/move1.mp3' : '/move2.mp3'
-            console.log(src)
 
             const sound = new Audio(src)
             sound.volume = 0.5
