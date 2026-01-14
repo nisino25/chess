@@ -75,10 +75,7 @@
         </div>
 
         <!-- Promotion Modal -->
-        <div
-            v-if="promotionModal"
-            class="fixed inset-0 bg-black/50 flex items-center justify-center z-50"
-        >
+        <div v-if="promotionModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
             <div class="bg-white rounded-xl p-6 w-80 text-center shadow-lg">
                 <h2 class="text-lg font-semibold mb-4">Promote Pawn</h2>
                 <p class="mb-4">Choose a piece:</p>
@@ -125,6 +122,7 @@ export default {
             toggleSound: false,
 
             moveLog: [] ,
+            pgnMoves: [],             
         }
     },
     mounted() {
@@ -213,76 +211,77 @@ export default {
         },
         // Move piece
         movePiece(piece, row, col) {
-            // ❌ Not a legal move → stop
-            const isLegalMove = this.possibleMoves.some(
-                m => m.row === row && m.col === col
-            )
-            if (!isLegalMove) return false
+    // ❌ Not a legal move → stop
+    if (!this.possibleMoves.some(m => m.row === row && m.col === col)) return false;
 
-            // Check if another piece is on that square
-            const targetIdx = this.pieces.findIndex(p => p.row === row && p.col === col)
-            const targetPiece = this.pieces[targetIdx]
+    const fromRow = piece.row;
+    const fromCol = piece.col;
 
-            // try caslitng
-            if (piece.type === 'king' && Math.abs(col - piece.col) === 2) {
-                return this.tryCastling(piece, row, col)
-            }
+    const targetIdx = this.pieces.findIndex(p => p.row === row && p.col === col);
+    const targetPiece = this.pieces[targetIdx];
 
-            // Same color? stop
-            if (targetIdx !== -1 && this.selected.color === targetPiece.color) return false
+    // Castling
+    if (piece.type === 'king' && Math.abs(col - piece.col) === 2) {
+        return this.tryCastling(piece, row, col);
+    }
 
-            // Remove captured piece immediately
-            if (targetIdx !== -1) {
-                this.pieces.splice(targetIdx, 1)
-            }
+    // Same color? stop
+    if (targetIdx !== -1 && piece.color === targetPiece.color) return false;
 
-            const moveRecord = {
-                pieceId: piece.id,
-                from: { row: piece.row, col: piece.col },
-                to: { row, col },
-                captured: targetPiece
-                    ? { pieceId: targetPiece.id, type: targetPiece.type, color: targetPiece.color }
-                    : null,
-                turn: piece.color,
-                promotionBefore: piece.type,
-                promotion: null
-            }
+    // Remove captured piece
+    if (targetIdx !== -1) this.pieces.splice(targetIdx, 1);
 
-            piece.row = row
-            piece.col = col
-            piece.hasMoved = true
+    // Move piece
+    piece.row = row;
+    piece.col = col;
+    piece.hasMoved = true;
 
-            // Check for pawn promotion **after capturing**
-            if (piece.type === 'pawn' && (row === 0 || row === 7)) {
-                this.promotionPiece = piece
-                this.promotionMoveRecord = moveRecord
-                this.promotionModal = true
-                return
-            }
-
-            // Add move to log AFTER promotion check
-            // this.moveLog.push(moveRecord)
-            const algebraic = this.toAlgebraicNotation(moveRecord);
-            this.moveLog.push(algebraic);
-            console.log(this.moveLog)
-
-            
-            this.playMoveSound();
-
-            // Check for king capture
-            if (targetPiece?.type === 'king') {
-                this.winner = piece.color
-                alert(`${this.winner} wins!`)
-                alert(JSON.stringify(this.moveLog, null, 2))
-                return
-            }
-
-            
+    // Check pawn promotion
+    let promotion = null;
+    if (piece.type === 'pawn' && (row === 0 || row === 7)) {
+        // Store the starting coords for UCI later
+        piece.from = { row: piece.row, col: piece.col }  
+        piece.row = row
+        piece.col = col
+        this.promotionPiece = piece
+        this.promotionModal = true
+        return
+    }
 
 
-            this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white'
-            this.possibleMoves = []
-        },
+    // Record move in UCI format
+    const uci = this.toUCI({
+        from: { row: fromRow, col: fromCol },
+        to: { row, col },
+        promotion
+    });
+
+    this.moveLog.push(uci);
+    console.log(this.moveLog);
+
+    this.playMoveSound();
+
+    // Check king capture
+    if (targetPiece?.type === 'king') {
+        this.winner = piece.color;
+        alert(`${this.winner} wins!`);
+        alert(this.moveLog.join(',')); // single line UCI log
+        return;
+    }
+
+    // Switch turn
+    this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white';
+    this.possibleMoves = [];
+},
+
+toUCI({ from, to, promotion }) {
+    const cols = ['a','b','c','d','e','f','g','h'];
+    const rows = ['8','7','6','5','4','3','2','1'];
+
+    let uci = cols[from.col] + rows[from.row] + cols[to.col] + rows[to.row];
+    if (promotion) uci += promotion.toLowerCase();
+    return uci;
+},
 
         
         tryCastling(king, row, col) {
@@ -305,38 +304,21 @@ export default {
             king.hasMoved = true
             rook.hasMoved = true
             return true
-        }
+        },
 
 
         getPieceAt(row, col) {
             return this.pieces.find(p => p.row === row && p.col === col)
         },
-        
-        toAlgebraicNotation(move) {
-          const cols = ['a','b','c','d','e','f','g','h'];
-          const rows = ['8','7','6','5','4','3','2','1'];
-        
-          const fromSquare = cols[move.from.col] + rows[move.from.row];
-          const toSquare = cols[move.to.col] + rows[move.to.row];
-        
-          // Castling
-          // if (move.p)  
-          let notation = '';
-        
-          if (pieceLetter) {
-            notation += pieceLetter;
-          } else if (move.captured) {
-            // Pawn capture needs file of origin
-            notation += cols[move.from.col];
-          }
-        
-          if (move.captured) notation += 'x';
-          notation += toSquare;
-        
-          if (move.promotion) notation += '=' + move.promotion[0].toUpperCase();
-        
-          return notation;
+
+        rowColToSquare(row, col) {
+            const files = ['a','b','c','d','e','f','g','h']
+            const ranks = ['8','7','6','5','4','3','2','1']
+            return files[col] + ranks[row]
         },
+        
+        
+
 
         isPossibleMove(row, col) {
             return this.possibleMoves.some(
@@ -515,33 +497,44 @@ export default {
         },
 
         undoMove() {
-            const lastMove = this.moveLog.pop()
-            if (!lastMove) return
+    // Remove the last move from log
+    if (!this.moveLog.length) return;
+    this.moveLog.pop();
 
-            // Move piece back
-            const piece = this.pieces.find(p => p.id === lastMove.pieceId)
-            piece.row = lastMove.from.row
-            piece.col = lastMove.from.col
+    // Reset board completely
+    this.pieces = this.initPieces();
 
-            // Revert promotion if any
-            if (lastMove.promotion) {
-                piece.type = lastMove.promotionBefore
-            }
+    // Replay all moves in log
+    this.moveLog.forEach(uci => {
+        const cols = ['a','b','c','d','e','f','g','h'];
+        const rows = ['8','7','6','5','4','3','2','1'];
 
-            // Restore captured piece if any
-            if (lastMove.captured) {
-                this.pieces.push({
-                    id: lastMove.captured.pieceId,
-                    type: lastMove.captured.type,
-                    color: lastMove.captured.color,
-                    row: lastMove.to.row,
-                    col: lastMove.to.col
-                })
-            }
+        const fromCol = cols.indexOf(uci[0]);
+        const fromRow = rows.indexOf(uci[1]);
+        const toCol = cols.indexOf(uci[2]);
+        const toRow = rows.indexOf(uci[3]);
+        const promotion = uci[4] || null;
 
-            this.currentTurn = lastMove.turn
-            this.winner = null
-        },
+        const piece = this.pieces.find(p => p.row === fromRow && p.col === fromCol);
+        if (!piece) return;
+
+        piece.row = toRow;
+        piece.col = toCol;
+
+        if (promotion) piece.type = promotion; // pawn promotion
+
+        // Remove captured piece automatically if destination is occupied by enemy
+        const targetIdx = this.pieces.findIndex(p => p.row === toRow && p.col === toCol && p.id !== piece.id);
+        if (targetIdx !== -1) this.pieces.splice(targetIdx, 1);
+
+        piece.hasMoved = true;
+    });
+
+    // Switch turn back
+    this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white';
+    this.winner = null;
+    this.possibleMoves = [];
+},
 
         resetBoard() {
             if (!confirm('Reset the game? This will clear all moves.')) return
@@ -555,30 +548,28 @@ export default {
         },
 
         promotePawn(type) {
-            if (!this.promotionPiece || !this.promotionMoveRecord) return
+    if (!this.promotionPiece) return
 
-            // Save promotion info in move record
-            this.promotionMoveRecord.promotion = type
+    // Update piece type
+    this.promotionPiece.type = type
 
-            // Update piece
-            this.promotionPiece.type = type
+    // Construct UCI move directly
+    const cols = ['a','b','c','d','e','f','g','h']
+    const rows = ['8','7','6','5','4','3','2','1']
+    const from = this.promotionPiece.from  // we'll store from coords when selecting pawn
+    const to = { row: this.promotionPiece.row, col: this.promotionPiece.col }
 
-            // Push move to log AFTER promotion
-            // this.moveLog.push(this.promotionMoveRecord)
-            
-            const algebraic = this.toAlgebraicNotation(this.promotionMoveRecord);
-            this.moveLog.push(algebraic);
-            console.log(this.moveLog)
+    const uci = cols[from.col] + rows[from.row] + cols[to.col] + rows[to.row] + type[0].toLowerCase()
+    this.moveLog.push(uci)
+    console.log(this.moveLog)
 
+    // Close modal
+    this.promotionPiece = null
+    this.promotionModal = false
 
-            // Close modal
-            this.promotionPiece = null
-            this.promotionMoveRecord = null
-            this.promotionModal = false
-
-            // Switch turn
-            this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white'
-        },
+    // Switch turn
+    this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white'
+},
         enableAudio() {
             this.audioEnabled = true
 
