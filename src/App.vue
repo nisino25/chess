@@ -258,7 +258,12 @@ export default {
             }
 
             // Add move to log AFTER promotion check
-            this.moveLog.push(moveRecord)
+            // this.moveLog.push(moveRecord)
+            const algebraic = toAlgebraicNotation(moveRecord);
+            this.moveLog.push(algebraic);
+            console.log(this.moveLog)
+
+            
             this.playMoveSound();
 
             // Check for king capture
@@ -279,6 +284,33 @@ export default {
         getPieceAt(row, col) {
             return this.pieces.find(p => p.row === row && p.col === col)
         },
+
+        
+        toAlgebraicNotation(move) {
+          const cols = ['a','b','c','d','e','f','g','h'];
+          const rows = ['8','7','6','5','4','3','2','1'];
+        
+          const fromSquare = cols[move.from.col] + rows[move.from.row];
+          const toSquare = cols[move.to.col] + rows[move.to.row];
+        
+          // Castling
+          if (move.p  let notation = '';
+        
+          if (pieceLetter) {
+            notation += pieceLetter;
+          } else if (move.captured) {
+            // Pawn capture needs file of origin
+            notation += cols[move.from.col];
+          }
+        
+          if (move.captured) notation += 'x';
+          notation += toSquare;
+        
+          if (move.promotion) notation += '=' + move.promotion[0].toUpperCase();
+        
+          return notation;
+        },
+
 
         isPossibleMove(row, col) {
             return this.possibleMoves.some(
@@ -519,7 +551,12 @@ export default {
             this.promotionPiece.type = type
 
             // Push move to log AFTER promotion
-            this.moveLog.push(this.promotionMoveRecord)
+            // this.moveLog.push(this.promotionMoveRecord)
+            
+            const algebraic = toAlgebraicNotation(this.promotionMoveRecord);
+            this.moveLog.push(algebraic);
+            console.log(this.moveLog)
+
 
             // Close modal
             this.promotionPiece = null
