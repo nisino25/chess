@@ -9,23 +9,54 @@
                          : 'bg-slate-900 text-white border border-slate-700'"
                  >
                      <i class="fa-solid fa-chess"></i>
-                     <span class="uppercase">{{ currentTurn }}'s turn</span>
+                     <span class="uppercase">
+                        {{ currentTurn }}'s turn
+                        <template v-if="replayModeOn"><br>{{ replayIndex }}/{{ replayMoves.length }}</template>
+                        <!-- {{ replayMoves?.slice(replayIndex).join(', ') }} -->
+                    </span>
                  </div>
              </div>
 
              <div class="flex gap-4 p-4 bg-white/80 backdrop-blur-md border border-gray-300 rounded-xl shadow-md">
-                 <button
-                     @click="undoMove"
-                     class="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 transition"
-                 >
-                    <i class="fa-solid fa-rotate-left"></i>
-                 </button>
+                <button
+                    @click="undoMove"
+                    class="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 transition"
+                >
+                <i class="fa-solid fa-rotate-left"></i>
+                </button>
+                <button
+                    v-if="replayModeOn"
+                    @click="toggleAutoReplay"
+                    class="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 transition"
+                >
+                    <i
+                        class="fa-solid"
+                        :class="isAutoReplay ? 'fa-pause' : 'fa-play'"
+                    ></i>
+                </button>
+                <button
+                    v-if="replayModeOn"
+                    @click="nextMove"
+                    class="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 transition"
+                >
+                    <i class="fa-solid fa-rotate-right"></i>
+                </button>
+
+
                  <button
                      @click="resetBoard"
                      class="px-4 py-2 bg-red-500 text-white rounded  transition"
                  >
-                     <i class="fa-solid fa-trash"></i>
+                    <i class="fa-solid fa-trash"></i>
                  </button>
+
+                 <button
+                     @click="replayModal = true"
+                     class="px-4 py-2 bg-green-500 text-white rounded  transition"
+                 >
+                    <i class="fas fa-save"></i>
+                 </button>
+                 
              </div>
         </div> 
 
@@ -48,8 +79,6 @@
                     @click="moveToTile(square.row, square.col)"
                 ></div>
             </div>
-
-
 
             <!-- Pieces layer -->
             <div class="absolute top-0 left-0 w-full h-full pointer-events-none">
@@ -94,6 +123,29 @@
             </div>
         </div>
 
+        <!-- Input Modal -->
+        <div v-if="replayModal" class="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-xl p-6 w-80 text-center shadow-lg">
+                <h2 class="text-lg font-semibold mb-4">Replay Game</h2>
+                <p class="mb-4">Paste your UCI move log:</p>
+                <textarea
+                    v-model="replayLogInput"
+                    class="w-full h-32 p-2 border border-gray-300 rounded mb-4 resize-none"
+                    placeholder="e2e4,e7e5,g1f3,..."
+                ></textarea>
+                <div class="flex justify-end gap-2">
+                    <button
+                        @click="replayModal = false"
+                        class="px-4 py-2 bg-gray-300 rounded hover:bg-gray-400 transition"
+                    >Cancel</button>
+                    <button
+                        @click="startReplay"
+                        class="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition"
+                    >Start Replay</button>
+                </div>
+            </div>
+        </div>
+
     </div>
 </template>
 
@@ -121,8 +173,16 @@ export default {
             moveAudio2: null,
             toggleSound: false,
 
-            moveLog: [] ,
-            pgnMoves: [],             
+            moveLog: [],
+            pgnMoves: [],  
+            
+            replayModeOn: false,
+            replayModal: false,
+            replayIndex: 0,
+            replayLogInput: '',
+            isAutoReplay: false,
+
+            tempUCI: '',
         }
     },
     mounted() {
@@ -170,6 +230,7 @@ export default {
             // White pieces
             const whitePawns = Array(8).fill('pawn')
             const whiteBack = ['rook','knight','bishop','queen','king','bishop','knight','rook']
+            // const whiteBack = ['rook','','','','king','','','rook']
 
             whitePawns.forEach((p, i) => pieces.push({ id: `wp${i}`, type: p, row: 6, col: i, color: 'white', hasMoved: false  }))
             whiteBack.forEach((p, i) => pieces.push({ id: `w${i}`, type: p, row: 7, col: i, color: 'white', hasMoved: false  }))
@@ -211,101 +272,130 @@ export default {
         },
         // Move piece
         movePiece(piece, row, col) {
-    // ❌ Not a legal move → stop
-    if (!this.possibleMoves.some(m => m.row === row && m.col === col)) return false;
+            const fromRow = piece.row;
+            const fromCol = piece.col;
 
-    const fromRow = piece.row;
-    const fromCol = piece.col;
-
-    const targetIdx = this.pieces.findIndex(p => p.row === row && p.col === col);
-    const targetPiece = this.pieces[targetIdx];
-
-    // Castling
-    if (piece.type === 'king' && Math.abs(col - piece.col) === 2) {
-        return this.tryCastling(piece, row, col);
-    }
-
-    // Same color? stop
-    if (targetIdx !== -1 && piece.color === targetPiece.color) return false;
-
-    // Remove captured piece
-    if (targetIdx !== -1) this.pieces.splice(targetIdx, 1);
-
-    // Move piece
-    piece.row = row;
-    piece.col = col;
-    piece.hasMoved = true;
-
-    // Check pawn promotion
-    let promotion = null;
-    if (piece.type === 'pawn' && (row === 0 || row === 7)) {
-        // Store the starting coords for UCI later
-        piece.from = { row: piece.row, col: piece.col }  
-        piece.row = row
-        piece.col = col
-        this.promotionPiece = piece
-        this.promotionModal = true
-        return
-    }
+            // =========================
+            // CASTLING FIRST
+            // =========================
+            if (
+                piece.type === 'king' &&
+                Math.abs(col - fromCol) === 2 &&
+                row === fromRow
+            ) {
+                return this.tryCastling(piece, row, col);
+            }
+            // ❌ Not a legal move → stop
+            if (!this.possibleMoves.some(m => m.row === row && m.col === col)) return false;
 
 
-    // Record move in UCI format
-    const uci = this.toUCI({
-        from: { row: fromRow, col: fromCol },
-        to: { row, col },
-        promotion
-    });
+            const targetIdx = this.pieces.findIndex(p => p.row === row && p.col === col);
+            const targetPiece = this.pieces[targetIdx];
 
-    this.moveLog.push(uci);
-    console.log(this.moveLog);
+            // Same color? stop
+            if (targetIdx !== -1 && piece.color === targetPiece.color) return false;
 
-    this.playMoveSound();
+            // Remove captured piece
+            if (targetIdx !== -1) this.pieces.splice(targetIdx, 1);
 
-    // Check king capture
-    if (targetPiece?.type === 'king') {
-        this.winner = piece.color;
-        alert(`${this.winner} wins!`);
-        alert(this.moveLog.join(',')); // single line UCI log
-        return;
-    }
+            // Move piece
+            piece.row = row;
+            piece.col = col;
+            piece.hasMoved = true;
 
-    // Switch turn
-    this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white';
-    this.possibleMoves = [];
-},
+            // Check pawn promotion
+            let promotion = null;
+            if (piece.type === 'pawn' && (row === 0 || row === 7)) {
+                // Store the starting coords for UCI later
+                piece.from = { row: piece.row, col: piece.col }  
+                piece.row = row
+                piece.col = col
+                this.promotionPiece = piece
+                this.promotionModal = true
+                this.tempUCI = this.toUCI({
+                    from: { row: fromRow, col: fromCol },
+                    to: { row, col },
+                });
+                return
+            }
 
-toUCI({ from, to, promotion }) {
-    const cols = ['a','b','c','d','e','f','g','h'];
-    const rows = ['8','7','6','5','4','3','2','1'];
 
-    let uci = cols[from.col] + rows[from.row] + cols[to.col] + rows[to.row];
-    if (promotion) uci += promotion.toLowerCase();
-    return uci;
-},
+            // Record move in UCI format
+            const uci = this.toUCI({
+                from: { row: fromRow, col: fromCol },
+                to: { row, col },
+                promotion
+            });
+
+            this.moveLog.push(uci);
+            console.log(this.moveLog);
+
+            this.playMoveSound();
+
+            // Check king capture
+            if (targetPiece?.type === 'king') {
+                this.winner = piece.color;
+                alert(`${this.winner} wins!`);
+                alert(this.moveLog.join(',')); // single line UCI log
+                return;
+            }
+
+            // Switch turn
+            this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white';
+            this.possibleMoves = [];
+        },
+
+        toUCI({ from, to, promotion }) {
+            const cols = ['a','b','c','d','e','f','g','h'];
+            const rows = ['8','7','6','5','4','3','2','1'];
+
+            let uci = cols[from.col] + rows[from.row] + cols[to.col] + rows[to.row];
+            if (promotion) uci += promotion.toLowerCase();
+            return uci;
+        },
 
         
         tryCastling(king, row, col) {
-            const isKingSide = col > king.col
-            const rookCol = isKingSide ? 7 : 0
-            const rook = this.pieces.find(p => p.row === row && p.col === rookCol && p.type === 'rook' && p.color === king.color)
-        
-            if (!rook || king.hasMoved || rook.hasMoved) return false
-        
-            // Check squares between king and rook are empty
-            const betweenCols = isKingSide ? [5, 6] : [1, 2, 3]
-            const isClear = betweenCols.every(c => !this.pieces.some(p => p.row === row && p.col === c))
-            if (!isClear) return false
-        
-            // TODO: Check king not in check and doesn't pass through check
-        
-            // Perform castling
-            king.col = col
-            rook.col = isKingSide ? col - 1 : col + 1
-            king.hasMoved = true
-            rook.hasMoved = true
-            return true
-        },
 
+            const isKingSide = col > king.col;
+            const rookCol = isKingSide ? 7 : 0;
+
+            const rook = this.pieces.find(p =>
+                p.row === row &&
+                p.col === rookCol &&
+                p.type === 'rook' &&
+                p.color === king.color
+            );
+
+            if (!rook || king.hasMoved || rook.hasMoved) return false;
+
+            // Check squares between king and rook are empty
+            const betweenCols = isKingSide ? [5, 6] : [1, 2, 3];
+            const isClear = betweenCols.every(c => !this.pieces.some(p => p.row === row && p.col === c));
+            if (!isClear) return false;
+
+            // TODO: Check king not in check and doesn't pass through check
+
+            // ---- Perform castling ----
+            king.col = col;
+            rook.col = isKingSide ? col - 1 : col + 1;
+            king.hasMoved = true;
+            rook.hasMoved = true;
+
+            // ---- LOG ----
+            // Traditional chess notation for castling
+            const castlingNotation = isKingSide ? 'O-O' : 'O-O-O';
+            this.moveLog.push(castlingNotation);
+
+            console.log(this.moveLog);
+
+            this.playMoveSound();
+
+            this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white';
+            this.possibleMoves = [];
+
+            return true;
+        },
 
         getPieceAt(row, col) {
             return this.pieces.find(p => p.row === row && p.col === col)
@@ -497,46 +587,74 @@ toUCI({ from, to, promotion }) {
         },
 
         undoMove() {
-    // Remove the last move from log
-    if (!this.moveLog.length) return;
-    this.moveLog.pop();
+            // Remove the last move from log
+            if (!this.moveLog.length) return;
+            if(this.replayModeOn) this.replayIndex--;
+            this.moveLog.pop();
 
-    // Reset board completely
-    this.pieces = this.initPieces();
+            // Reset board completely
+            this.pieces = this.initPieces();
 
-    // Replay all moves in log
-    this.moveLog.forEach(uci => {
-        const cols = ['a','b','c','d','e','f','g','h'];
-        const rows = ['8','7','6','5','4','3','2','1'];
 
-        const fromCol = cols.indexOf(uci[0]);
-        const fromRow = rows.indexOf(uci[1]);
-        const toCol = cols.indexOf(uci[2]);
-        const toRow = rows.indexOf(uci[3]);
-        const promotion = uci[4] || null;
+            // Temporary turn tracker for replaying moves
+            let tempTurn = 'white';
 
-        const piece = this.pieces.find(p => p.row === fromRow && p.col === fromCol);
-        if (!piece) return;
+            // Replay all moves in log
+            this.moveLog.forEach(uci => {
+                if (uci === 'O-O' || uci === 'O-O-O') {
+                    // CASTLING DETECTED
+                    const isKingSide = uci === 'O-O';
+                    const row = tempTurn === 'white' ? 7 : 0; // king's row
+                    const king = this.pieces.find(p => p.type === 'king' && p.color === tempTurn);
+                    const rook = this.pieces.find(p => p.type === 'rook' && p.color === tempTurn && (isKingSide ? p.col === 7 : p.col === 0));
 
-        piece.row = toRow;
-        piece.col = toCol;
+                    // move king
+                    king.col = isKingSide ? 6 : 2;
+                    king.row = row;
+                    king.hasMoved = true;
 
-        if (promotion) piece.type = promotion; // pawn promotion
+                    // move rook
+                    rook.col = isKingSide ? 5 : 3;
+                    rook.row = row;
+                    rook.hasMoved = true;
 
-        // Remove captured piece automatically if destination is occupied by enemy
-        const targetIdx = this.pieces.findIndex(p => p.row === toRow && p.col === toCol && p.id !== piece.id);
-        if (targetIdx !== -1) this.pieces.splice(targetIdx, 1);
+                    tempTurn = tempTurn === 'white' ? 'black' : 'white';
+                    return; // skip the rest of this iteration
+                }
 
-        piece.hasMoved = true;
-    });
+                const cols = ['a','b','c','d','e','f','g','h'];
+                const rows = ['8','7','6','5','4','3','2','1'];
 
-    // Switch turn back
-    this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white';
-    this.winner = null;
-    this.possibleMoves = [];
-},
+                const fromCol = cols.indexOf(uci[0]);
+                const fromRow = rows.indexOf(uci[1]);
+                const toCol = cols.indexOf(uci[2]);
+                const toRow = rows.indexOf(uci[3]);
+                const promotion = uci[4] || null;
 
-        resetBoard() {
+                const piece = this.pieces.find(p => p.row === fromRow && p.col === fromCol);
+                if (!piece) return;
+
+                piece.row = toRow;
+                piece.col = toCol;
+
+                if (promotion) piece.type = promotion; // pawn promotion
+
+                // Remove captured piece automatically if destination is occupied by enemy
+                const targetIdx = this.pieces.findIndex(p => p.row === toRow && p.col === toCol && p.id !== piece.id);
+                if (targetIdx !== -1) this.pieces.splice(targetIdx, 1);
+
+                piece.hasMoved = true;
+                // Switch temp turn
+                tempTurn = tempTurn === 'white' ? 'black' : 'white';
+            });
+
+            // Switch turn back
+            this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white';
+            this.winner = null;
+            this.possibleMoves = [];
+        },
+
+        resetBoard(forReplay) {
             if (!confirm('Reset the game? This will clear all moves.')) return
 
             this.pieces = this.initPieces()
@@ -545,31 +663,33 @@ toUCI({ from, to, promotion }) {
             this.winner = null
             this.possibleMoves = []
             this.moveLog = []
+
+            if(!forReplay){
+                this.replayIndex = 0;
+                this.replayModeOn = false;
+                this.replayMoves = [];
+            } return;
         },
 
         promotePawn(type) {
-    if (!this.promotionPiece) return
+            if (!this.promotionPiece) return
 
-    // Update piece type
-    this.promotionPiece.type = type
+            // Update piece type
+            this.promotionPiece.type = type
 
-    // Construct UCI move directly
-    const cols = ['a','b','c','d','e','f','g','h']
-    const rows = ['8','7','6','5','4','3','2','1']
-    const from = this.promotionPiece.from  // we'll store from coords when selecting pawn
-    const to = { row: this.promotionPiece.row, col: this.promotionPiece.col }
+            const uci = this.tempUCI + type[0].toLowerCase()
+            this.moveLog.push(uci)
+            console.log(this.moveLog)
 
-    const uci = cols[from.col] + rows[from.row] + cols[to.col] + rows[to.row] + type[0].toLowerCase()
-    this.moveLog.push(uci)
-    console.log(this.moveLog)
+            this.tempUCI = ''
 
-    // Close modal
-    this.promotionPiece = null
-    this.promotionModal = false
+            // Close modal
+            this.promotionPiece = null
+            this.promotionModal = false
 
-    // Switch turn
-    this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white'
-},
+            // Switch turn
+            this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white'
+        },
         enableAudio() {
             this.audioEnabled = true
 
@@ -592,7 +712,125 @@ toUCI({ from, to, promotion }) {
             sound.play().catch(() => {})
 
             this.toggleSound = !this.toggleSound
-        }
+        },
+
+        startReplay() {
+            if (!this.replayLogInput) return
+
+            const moves = this.replayLogInput
+                .split(',')
+                .map(m => m.trim())
+                .filter(Boolean)
+
+            this.replayModeOn = true
+            this.replayModal = false
+            this.replayMoves = moves
+
+            this.resetBoard(true)
+            this.replayIndex = 0
+
+            this.playReplay()
+        },
+        applyUCIMove(uci) {
+            // CASTLING
+            if (uci === 'O-O' || uci === 'O-O-O') {
+                const isKingSide = uci === 'O-O';
+                const row = this.currentTurn === 'white' ? 7 : 0;
+                const king = this.pieces.find(p => p.type === 'king' && p.color === this.currentTurn);
+                const rook = this.pieces.find(
+                    p => p.type === 'rook' && p.color === this.currentTurn && (isKingSide ? p.col === 7 : p.col === 0)
+                );
+
+                if (!king || !rook) return;
+
+                king.col = isKingSide ? 6 : 2;
+                king.row = row;
+                king.hasMoved = true;
+
+                rook.col = isKingSide ? 5 : 3;
+                rook.row = row;
+                rook.hasMoved = true;
+
+                this.moveLog.push(uci);
+                this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white';
+                return;
+            }
+
+            const cols = ['a','b','c','d','e','f','g','h']
+            const rows = ['8','7','6','5','4','3','2','1']
+
+            const fromCol = cols.indexOf(uci[0])
+            const fromRow = rows.indexOf(uci[1])
+            const toCol = cols.indexOf(uci[2])
+            const toRow = rows.indexOf(uci[3])
+            const promotion = uci.length === 5 ? uci[4] : null
+
+            const piece = this.pieces.find(
+                p => p.row === fromRow && p.col === fromCol
+            )
+            if (!piece) return
+
+            // capture
+            const targetIdx = this.pieces.findIndex(
+                p => p.row === toRow && p.col === toCol
+            )
+            if (targetIdx !== -1) {
+                this.pieces.splice(targetIdx, 1)
+            }
+
+            piece.row = toRow
+            piece.col = toCol
+            piece.hasMoved = true
+
+            // promotion
+            if (promotion) {
+                const map = {
+                    q: 'queen',
+                    r: 'rook',
+                    b: 'bishop',
+                    n: 'knight'
+                }
+                piece.type = map[promotion]
+            }
+
+            this.moveLog.push(uci)
+            this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white'
+        },
+        playReplay() {
+            // stop immediately if paused
+            if (!this.isAutoReplay) return
+
+            // stop if finished
+            if (this.replayIndex >= this.replayMoves.length) {
+                this.isAutoReplay = false
+                return
+            }
+
+            this.applyUCIMove(this.replayMoves[this.replayIndex])
+            this.replayIndex++
+
+            setTimeout(() => {
+                this.playReplay()
+            }, 1000)
+        },
+        nextMove() {
+            if (this.replayIndex >= this.replayMoves.length) return
+            this.applyUCIMove(this.replayMoves[this.replayIndex])
+            this.replayIndex++
+        },
+        toggleAutoReplay() {
+            if (this.isAutoReplay) {
+                // pause
+                this.isAutoReplay = false
+            } else {
+                // play
+                this.isAutoReplay = true
+                this.playReplay()
+            }
+        },
+
+
+
 
     }
 }
