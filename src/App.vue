@@ -10,14 +10,14 @@
                  >
                      <i class="fa-solid fa-chess"></i>
                      <span class="uppercase">
-                        {{ currentTurn }}'s turn
+                        {{ currentTurn }}
                         <template v-if="replayModeOn"><br>{{ replayIndex }}/{{ replayMoves.length }}</template>
                         <!-- {{ replayMoves?.slice(replayIndex).join(', ') }} -->
                     </span>
                  </div>
              </div>
 
-             <div class="flex gap-4 p-4 bg-white/80 backdrop-blur-md border border-gray-300 rounded-xl shadow-md">
+             <div class="grid grid-cols-3 gap-4 p-4 bg-white/80 backdrop-blur-md border border-gray-300 rounded-xl shadow-md">
                 <button
                     @click="undoMove"
                     class="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 transition"
@@ -42,8 +42,7 @@
                     <i class="fa-solid fa-rotate-right"></i>
                 </button>
 
-
-                 <button
+                <button
                      @click="resetBoard"
                      class="px-4 py-2 bg-red-500 text-white rounded  transition"
                  >
