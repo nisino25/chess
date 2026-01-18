@@ -9,9 +9,12 @@
                          : 'bg-slate-900 text-white border border-slate-700'"
                  >
                      <i class="fa-solid fa-chess"></i>
-                     <span class="uppercase">
+                     <span class="uppercase text-center">
                         {{ currentTurn }}
-                        <template v-if="replayModeOn"><br>{{ replayIndex }}/{{ replayMoves.length }}</template>
+                        <template v-if="!replayModeOn">
+                            <br>{{ moveLog.length }}
+                        </template>
+                        <template v-else><br>{{ replayIndex }}/{{ replayMoves.length }}</template>
                         <!-- {{ replayMoves?.slice(replayIndex).join(', ') }} -->
                     </span>
                  </div>
@@ -145,6 +148,21 @@
             </div>
         </div>
 
+        <div class="timer-container flex justify-between mt-8 absolute px-8 bottom-8 w-full">
+            <div class="p-3 bg-white/80 backdrop-blur-md border border-gray-300 rounded-xl shadow-md">
+                <span>White <i class="fa-solid fa-hourglass-half"></i></span>
+                <p class="text-center">{{ convertTime(whiteTimeInSeconds) }}</p>
+            </div>
+            <div class="p-3 bg-gray/200 backdrop-blur-md border border-gray-300 rounded-xl shadow-md">
+                <span>Total <i class="fa-solid fa-hourglass-half"></i></span>
+                <p class="text-center">{{ convertTime(totalTimeInSeconds) }}</p>
+            </div>
+            <div class="p-3 bg-black/80 backdrop-blur-md border border-gray-300 rounded-xl shadow-md text-white">
+                <span>Black <i class="fa-solid fa-hourglass-half"></i></span>
+                <p class="text-center">{{ convertTime(blackTimeInSeconds) }}</p>
+            </div>
+        </div>
+
     </div>
 </template>
 
@@ -182,6 +200,10 @@ export default {
             isAutoReplay: false,
 
             tempUCI: '',
+
+            whiteTimeInSeconds: 0,
+            blackTimeInSeconds: 0,
+            timerInterval: null
         }
     },
     mounted() {
@@ -202,6 +224,8 @@ export default {
             window.removeEventListener('click', unlockAudio)
         }
         window.addEventListener('click', unlockAudio)
+
+        this.startTimer()
 
     },
     methods: {
@@ -327,7 +351,6 @@ export default {
             });
 
             this.moveLog.push(uci);
-            console.log(this.moveLog);
 
             this.playMoveSound();
 
@@ -343,7 +366,6 @@ export default {
             this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white';
             this.possibleMoves = [];
         },
-
         toUCI({ from, to, promotion }) {
             const cols = ['a','b','c','d','e','f','g','h'];
             const rows = ['8','7','6','5','4','3','2','1'];
@@ -386,8 +408,6 @@ export default {
             const castlingNotation = isKingSide ? 'O-O' : 'O-O-O';
             this.moveLog.push(castlingNotation);
 
-            console.log(this.moveLog);
-
             this.playMoveSound();
 
             this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white';
@@ -406,15 +426,11 @@ export default {
             return files[col] + ranks[row]
         },
         
-        
-
-
         isPossibleMove(row, col) {
             return this.possibleMoves.some(
             m => m.row === row && m.col === col
             )
         },
-        
         getPossibleMoves(piece) {
             const moves = []
         
@@ -598,6 +614,13 @@ export default {
             // Temporary turn tracker for replaying moves
             let tempTurn = 'white';
 
+            const promotionMap = {
+                q: 'queen',
+                r: 'rook',
+                b: 'bishop',
+                n: 'knight'
+            };
+
             // Replay all moves in log
             this.moveLog.forEach(uci => {
                 if (uci === 'O-O' || uci === 'O-O-O') {
@@ -636,7 +659,9 @@ export default {
                 piece.row = toRow;
                 piece.col = toCol;
 
-                if (promotion) piece.type = promotion; // pawn promotion
+                if (promotion) {
+                    piece.type = promotionMap[promotion];
+                }
 
                 // Remove captured piece automatically if destination is occupied by enemy
                 const targetIdx = this.pieces.findIndex(p => p.row === toRow && p.col === toCol && p.id !== piece.id);
@@ -667,9 +692,14 @@ export default {
                 this.replayIndex = 0;
                 this.replayModeOn = false;
                 this.replayMoves = [];
-            } return;
-        },
+            }
 
+            this.whiteTime = "0:00";
+            this.blackTime = "0:00";
+            this.totalTime = "0:00";
+
+            return;
+        },
         promotePawn(type) {
             if (!this.promotionPiece) return
 
@@ -678,7 +708,6 @@ export default {
 
             const uci = this.tempUCI + type[0].toLowerCase()
             this.moveLog.push(uci)
-            console.log(this.moveLog)
 
             this.tempUCI = ''
 
@@ -689,6 +718,7 @@ export default {
             // Switch turn
             this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white'
         },
+
         enableAudio() {
             this.audioEnabled = true
 
@@ -810,7 +840,7 @@ export default {
 
             setTimeout(() => {
                 this.playReplay()
-            }, 1000)
+            }, 500)
         },
         nextMove() {
             if (this.replayIndex >= this.replayMoves.length) return
@@ -828,10 +858,33 @@ export default {
             }
         },
 
+        startTimer() {
+            if (this.timerInterval) return // safety
 
+            this.timerInterval = setInterval(() => {
+                if (this.currentTurn === 'white') {
+                    this.whiteTimeInSeconds++
+                } else {
+                    this.blackTimeInSeconds++
+                }
+            }, 1000)
+        },
+        stopTimer() {
+            clearInterval(this.timerInterval)
+            this.timerInterval = null
+        },
+        convertTime(seconds) {
+            const minutes = Math.floor(seconds / 60)
+            const remainingSeconds = seconds % 60
 
-
-    }
+            return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
+        }
+    },
+    computed: {
+        totalTimeInSeconds() {
+            return this.whiteTimeInSeconds + this.blackTimeInSeconds;
+        }
+    },
 }
 </script>
 
