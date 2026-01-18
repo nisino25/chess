@@ -76,7 +76,8 @@
                     :key="`${square.row}-${square.col}`"
                     :class="[
                         squareClass(square.row, square.col),
-                        isPossibleMove(square.row, square.col) ? 'blink' : ''
+                        isPossibleMove(square.row, square.col) ? 'blink' : '',
+                        isLastMove(square.row, square.col) ? 'square--last-move' : ''
                     ]"
                     @click="moveToTile(square.row, square.col)"
                 ></div>
@@ -600,6 +601,32 @@ export default {
         
             return moves
         },
+        isLastMove(row,col){
+            if(this.moveLog.length === 0) return false;
+
+            const lastUCI = this.moveLog[this.moveLog.length -1];
+
+            // CASTLING
+            if(lastUCI === 'O-O' || lastUCI === 'O-O-O'){
+                const isKingSide = lastUCI === 'O-O';
+                const kingRow = this.currentTurn === 'white' ? 0 : 7; // since turn already switched
+                const kingCol = isKingSide ? 6 : 2;
+                const rookCol = isKingSide ? 5 : 3;
+
+                return (row === kingRow && col === kingCol) || (row === kingRow && col === rookCol);
+            }
+
+            const cols = ['a','b','c','d','e','f','g','h'];
+            const rows = ['8','7','6','5','4','3','2','1'];
+
+            // const toCol = cols.indexOf(lastUCI[2]);
+            // const toRow = rows.indexOf(lastUCI[3]);
+
+            return (
+                (row === rows.indexOf(lastUCI[3]) && col === cols.indexOf(lastUCI[2]))) 
+                || 
+                (row === rows.indexOf(lastUCI[1]) && col === cols.indexOf(lastUCI[0]));
+        },
 
         undoMove() {
             // Remove the last move from log
@@ -878,7 +905,8 @@ export default {
             const remainingSeconds = seconds % 60
 
             return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
-        }
+        },
+
     },
     computed: {
         totalTimeInSeconds() {
@@ -917,6 +945,11 @@ body {
 
 .blink {
     animation: blink 1.2s ease-in-out infinite;
+}
+
+.square--last-move {
+    background: rgba(50, 120, 220, 0.6);
+
 }
 
 </style>
