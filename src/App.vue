@@ -204,7 +204,11 @@ export default {
 
             whiteTimeInSeconds: 0,
             blackTimeInSeconds: 0,
-            timerInterval: null
+            timerInterval: null,
+
+            draggingPiece: null,
+            dragOffset: { x: 0, y: 0 },
+            boardRect: null,
         }
     },
     mounted() {
@@ -948,7 +952,7 @@ body {
 }
 
 .square--last-move {
-    background: rgba(50, 120, 220, 0.6);
+    background: rgba(50, 120, 220, 0.6) !important;
 
 }
 
