@@ -645,10 +645,10 @@ export default {
             let tempTurn = 'white';
 
             const promotionMap = {
-                q: 'queen',
                 r: 'rook',
+                k: 'knight',
                 b: 'bishop',
-                n: 'knight'
+                q: 'queen',
             };
 
             // Replay all moves in log
