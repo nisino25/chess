@@ -3,16 +3,15 @@
         <div class="flex gap-4 items-center mb-4">
             <div class="p-4 flex flex-col items-center">
                  <div
-                     class="flex items-center justify-center gap-2 px-4 py-2 rounded-full text-sm font-medium shadow-sm transition"
+                     class="flex items-center justify-center gap-2 px-4 py-2 rounded-full text-medium shadow-sm transition"
                      :class="currentTurn === 'white'
                          ? 'bg-gray-100 text-gray-900 border border-gray-300'
                          : 'bg-slate-900 text-white border border-slate-700'"
                  >
                      <i class="fa-solid fa-chess"></i>
-                     <span class="uppercase text-center">
-                        {{ currentTurn }}
+                     <span class="uppercase text-center font-large">
                         <template v-if="!replayModeOn">
-                            <br>{{ moveLog.length }}
+                            {{ moveLog.length }}
                         </template>
                         <template v-else><br>{{ replayIndex }}/{{ replayMoves.length }}</template>
                         <!-- {{ replayMoves?.slice(replayIndex).join(', ') }} -->
@@ -68,7 +67,7 @@
         <h3 v-if="winner" class="font-xl font-bold font-red">Winner: {{ winner }}</h3>
         <hr>
 
-        <div class="max-w-[725px] w-[92.5vw] aspect-square absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-4 border-gray-400 shadow-lg">
+        <div class="max-w-[725px] w-[92.5vw] aspect-square absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-4 border-gray-800 shadow-lg">
             <!-- Board squares -->
             <div class="grid grid-cols-8 grid-rows-8 w-full h-full">
                 <div
@@ -91,8 +90,7 @@
                     class="piece absolute text-[35px] md:text-[50px] transition-all duration-300 cursor-pointer pointer-events-auto"
                     :style="{
                         top: `${piece.row * 12.5}%`,
-                        left: `${piece.col * 12.5}%`,
-                        transform: piece.color === 'black' ? 'rotate(180deg)' : 'none'
+                        left: `${piece.col * 12.5}%`
                     }"
                     @click.stop="selectPiece(piece)"
                     :class="selected && selected.id === piece.id ? 'ring-4 ring-indigo-400' : ''"
@@ -634,6 +632,7 @@ export default {
 
         undoMove() {
             // Remove the last move from log
+            console.log(this.moveLog)
             if (!this.moveLog.length) return;
             if(this.replayModeOn) this.replayIndex--;
             this.moveLog.pop();
@@ -725,9 +724,8 @@ export default {
                 this.replayMoves = [];
             }
 
-            this.whiteTime = "0:00";
-            this.blackTime = "0:00";
-            this.totalTime = "0:00";
+            this.whiteTimeInSeconds = 0;
+            this.blackTimeInSeconds = 0;
 
             return;
         },
@@ -921,39 +919,39 @@ export default {
 </script>
 
 <style>
-html,
-body {
-    margin: 0;
-    padding: 0;
-    height: 100vh;
-    overflow: hidden;
-}
-
-.piece {
-    width: 12.5%;
-    height: 12.5%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-@keyframes blink {
-    0%, 100% {
-        opacity: 0.4;
-        background: gold;
+    html,
+    body {
+        margin: 0;
+        padding: 0;
+        height: 100vh;
+        overflow: hidden;
     }
-    50% {
-        opacity: 0.9;
+
+    .piece {
+        width: 12.5%;
+        height: 12.5%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
-}
 
-.blink {
-    animation: blink 1.2s ease-in-out infinite;
-}
+    @keyframes blink {
+        0%, 100% {
+            opacity: 0.4;
+            background: gold;
+        }
+        50% {
+            opacity: 0.9;
+        }
+    }
 
-.square--last-move {
-    background: rgba(50, 120, 220, 0.6) !important;
+    .blink {
+        animation: blink 1.2s ease-in-out infinite;
+    }
 
-}
+    .square--last-move {
+        background: rgba(50, 120, 220, 0.6) !important;
+
+    }
 
 </style>
