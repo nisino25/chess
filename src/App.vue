@@ -5,21 +5,23 @@
                  <div
                      class="flex items-center justify-center gap-2 px-4 py-2 rounded-full text-medium shadow-sm transition"
                      :class="currentTurn === 'white'
-                         ? 'bg-gray-100 text-gray-900 border border-gray-300'
-                         : 'bg-slate-900 text-white border border-slate-700'"
+                         ? 'bg-gray-50 text-gray-900 border border-gray-300'
+                         : 'bg-slate-500 text-white border border-slate-700'"
                  >
                      <i class="fa-solid fa-chess"></i>
                      <span class="uppercase text-center font-large">
                         <template v-if="!replayModeOn">
                             {{ moveLog.length }}
                         </template>
-                        <template v-else><br>{{ replayIndex }}/{{ replayMoves.length }}</template>
+                        <template v-else>
+                            {{ replayIndex }}/{{ replayMoves.length }}
+                        </template>
                         <!-- {{ replayMoves?.slice(replayIndex).join(', ') }} -->
                     </span>
                  </div>
              </div>
 
-             <div class="grid grid-cols-3 gap-4 p-4 bg-white/80 backdrop-blur-md border border-gray-300 rounded-xl shadow-md">
+             <div class="grid grid-cols-3 gap-4 p-4 bg-white/60 backdrop-blur-md border border-gray-300 rounded-xl shadow-md">
                 <button
                     @click="undoMove"
                     class="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 transition"
@@ -62,12 +64,10 @@
         </div> 
 
 
-
-
         <h3 v-if="winner" class="font-xl font-bold font-red">Winner: {{ winner }}</h3>
         <hr>
 
-        <div class="max-w-[725px] w-[92.5vw] aspect-square absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-4 border-gray-800 shadow-lg">
+        <div class="max-w-[725px] w-[92.5vw] aspect-square absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-4 border-gray-300 shadow-lg">
             <!-- Board squares -->
             <div class="grid grid-cols-8 grid-rows-8 w-full h-full">
                 <div
@@ -152,7 +152,7 @@
                 <span>White <i class="fa-solid fa-hourglass-half"></i></span>
                 <p class="text-center">{{ convertTime(whiteTimeInSeconds) }}</p>
             </div>
-            <div class="p-3 bg-gray/200 backdrop-blur-md border border-gray-300 rounded-xl shadow-md">
+            <div class="p-3 bg-white/60 backdrop-blur-md border border-gray-300 rounded-xl shadow-md">
                 <span>Total <i class="fa-solid fa-hourglass-half"></i></span>
                 <p class="text-center">{{ convertTime(totalTimeInSeconds) }}</p>
             </div>
@@ -925,6 +925,8 @@ export default {
         padding: 0;
         height: 100vh;
         overflow: hidden;
+
+        background-color: #1e293b !important;
     }
 
     .piece {
