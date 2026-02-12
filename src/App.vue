@@ -1,5 +1,65 @@
 <template>
-    <div class="p-4 flex flex-col items-center">
+    <div v-if="currentPage === 'before'">
+        <div class="bg-white p-5 rounded-lg shadow-md w-[85%] max-w-[400px] m-auto absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-black">
+
+          <div v-if="!roomOption">
+            <button @click="nextRoomOption('create')" class="bg-[#3581B8] text-white  block w-1/2 mx-auto p-[10px] rounded">Create a room</button>
+            <hr class="my-3">
+            <button @click="nextRoomOption('join'); " class="bg-[#13563B] text-white block w-1/2 mx-auto p-[10px] rounded">Join a room</button>
+          </div>
+          <template v-if="roomOption && !roomCode">
+            <h2>Type your name</h2>
+              <div class="flex items-center mb-3 border border-gray-300 rounded overflow-hidden">
+              <input
+                type="text"
+                class="flex-grow p-2 outline-none"
+                v-model="username"
+                placeholder="Enter your username"
+              >
+              <button
+                class="p-2 text-gray-600 hover:text-gray-900"
+                @click="username = getRandomName()"
+              >
+                <i class="fa-solid fa-shuffle"></i>
+              </button>
+            </div>
+
+              <div class="w-[95%] mx-auto grid grid-cols-5 gap-3 justify-between mb-5">
+                <div v-for="(avatar, index) in avatars" :key="index" @click="randomString = avatar.randomString" v-html="avatar.avatar"  :style="{ opacity:  randomString !== avatar.randomString ? '0.6' : '1' }"></div>
+
+                <div class="text-3xl text-gray-600 flex justify-center items-center text-center" @click="generateAvatars('female')">
+                  <i class="fas fa-sync"></i>
+                </div>
+              </div>
+              <div class="flex items-center mb-2" v-if="roomOption === 'join'">
+                <input type="number" v-model="tempRoomcode" placeholder="Type room code" class="flex-grow p-2 border border-gray-300 rounded">
+              </div>
+              <!-- <button v-if="readyToPlay" @click="randomName()" class="add-button">ランダム</button> -->
+              <button @click="roomOption = null" class="bg-[#B83A4B] text-white block mx-auto p-[10px] rounded w-1/2 mb-2">Back</button>
+              <button @click="username = getRandomName();" class="bg-[black] text-white block mx-auto p-[10px] rounded mb-2 w-1/2">Random Name</button>
+              <button v-if="readyToPlay && roomOption === 'create'" @click="createARoom()" class="bg-[#3581B8] text-white  block  mx-auto p-[10px] rounded w-1/2 mb-2">Create</button>
+              <button v-if="tempRoomcode >= 10000 && tempRoomcode <= 99999 && readyToPlay && roomOption === 'join'" @click="joinARoom()" class="bg-[#3581B8] text-white  block mx-auto p-[10px] rounded w-1/2 mb-2">Join</button>
+              <!-- <button v-if="tempRoomcode >= 10000 && tempRoomcode <= 99999 && readyToPlay && roomOption === 'join'" @click="monitorGame()" class="bg-yellow-400 text-white  block mx-auto p-[10px] rounded w-1/2">Monitor mode</button> -->
+          </template>
+
+          <template v-if="roomOption && roomCode">
+            <template  v-if="isHost"><h2>You are host</h2></template>
+              
+            <h2 v-if="!isHost">Welcome {{ username }}!</h2>
+            <p>Room code: <strong class="font-size: 2.5em; color: crimson; margin-right: 5px; font-weight: bold;">{{ roomCode }}</strong></p>
+            <hr>
+            <template v-for="(player, index) in players" :key="index">
+              <div class="player-list flex items-center gap-2 my-2">
+                <span>{{index +1}}.</span>
+                <div v-html="regenerate(player?.randomString)"></div>
+                <p>{{ player.name }}</p>
+              </div>
+            </template>
+            <button v-if="players?.length == 2 && isHost"  @click="closeTheRoom()" class="bg-[#3581B8] text-white  block  mx-auto p-[10px] rounded w-1/2 mb-2">Close room</button>
+          </template>
+        </div>
+    </div>
+    <div v-if="currentPage === 'game'" class="p-4 flex flex-col items-center">
         <div class="flex gap-4 items-center mb-4">
             <div class="p-4 flex flex-col items-center">
                  <div
@@ -166,6 +226,9 @@
 </template>
 
 <script>
+import db from './firebase.js';
+import { randomNames } from './name.js';
+
 export default {
     name: 'ChessBoard',
     data() {
@@ -190,7 +253,6 @@ export default {
             toggleSound: false,
 
             moveLog: [],
-            pgnMoves: [],  
             
             replayModeOn: false,
             replayModal: false,
@@ -207,6 +269,37 @@ export default {
             draggingPiece: null,
             dragOffset: { x: 0, y: 0 },
             boardRect: null,
+
+            // ----------------------------
+            devMode: false,
+            currentPage: 'before',
+
+            defaultNumber: 2,
+            maxPlayerNumber: 2,
+            randomNames,
+
+            firebaseRoomName: 'chess-rooms',
+            roomOption: null,
+            roomCode: null,
+            tempRoomcode: null,
+            generalData: null,
+
+            username: null,
+            onlineStatus: '',
+
+            gameResults: [],
+            previousGameResults: [],
+
+            pickedRandomString: null,
+            avatars: [],
+            randomString: 0,
+
+            isCheckingNow: false,
+            gameMessage: "",
+            isHost: false,
+            developingMode: false,
+
+            players: [],
         }
     },
     mounted() {
@@ -216,19 +309,13 @@ export default {
         this.moveAudio1 = new Audio('/move1.mp3')
         this.moveAudio2 = new Audio('/move2.mp3')
 
-        this.moveAudio1.volume = 0.5
-        this.moveAudio2.volume = 0.5
+        this.generateAvatars();
+        // this.currentPlayerIndex = 0
 
-        // Safari/iOS requires a user interaction first
-        // So we wait for the first click to unlock the audio
-        const unlockAudio = () => {
-            // Play a tiny silent sound to unlock
-            this.moveAudio1.play().catch(() => {})
-            window.removeEventListener('click', unlockAudio)
-        }
-        window.addEventListener('click', unlockAudio)
+        this.username = this.getRandomName();
+        this.devMode = true
 
-        this.startTimer()
+        // this.startTimer()
 
     },
     methods: {
@@ -354,6 +441,7 @@ export default {
             });
 
             this.moveLog.push(uci);
+            this.updateMoves();
 
             this.playMoveSound();
 
@@ -410,6 +498,7 @@ export default {
             // Traditional chess notation for castling
             const castlingNotation = isKingSide ? 'O-O' : 'O-O-O';
             this.moveLog.push(castlingNotation);
+            this.updateMoves();
 
             this.playMoveSound();
 
@@ -706,6 +795,8 @@ export default {
             this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white';
             this.winner = null;
             this.possibleMoves = [];
+
+            this.updateMoves()
         },
 
         resetBoard(forReplay) {
@@ -737,6 +828,7 @@ export default {
 
             const uci = this.tempUCI + type[0].toLowerCase()
             this.moveLog.push(uci)
+            this.updateMoves();
 
             this.tempUCI = ''
 
@@ -909,12 +1001,263 @@ export default {
             return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
         },
 
+        // ---------------------
+        randomName(){
+            this.username = this.getRandomName();
+        },
+        retriveCode(){
+            this.tempRoomcode = localStorage.getItem('latestRoomCode') || 'No room code found'
+        },
+        nextRoomOption(option){
+            if(!this.devMode) return
+            if(option == 'create'){
+                this.createARoom()
+            }
+            if(option == 'join'){
+                this.retriveCode();
+                if(!this.devMode) return
+                this.joinARoom()
+            }
+        },
+        async createARoom() {
+            if (this.roomCode) return;
+
+
+            if(!this.developingMode){
+                const ok = window.confirm('Start a new room?')
+                if (!ok) return
+            }
+            // if(!this.username) return;
+
+            let isUnique = false;
+
+            // Generate a unique room code
+            while (!isUnique) {
+                this.tempRoomcode = Math.floor(10000 + Math.random() * 90000);
+                const docRef = db.collection(this.firebaseRoomName).doc(`${this.tempRoomcode}`);
+                const doc = await docRef.get();
+                if (!doc.exists) {
+                    isUnique = true;
+                }
+            }
+
+            // console.log(this.roomCode)
+            this.roomCode = this.tempRoomcode
+            localStorage.setItem('latestRoomCode', this.roomCode)
+
+            this.players = [
+                {
+                name:this.username,
+                randomString: this.randomString,
+                }
+            ]
+
+            const ref = db.collection(this.firebaseRoomName)
+            ref.doc(`${this.roomCode}`).set({
+                games: JSON.stringify([{ gameStatus: 'waiting' }]),
+                players: this.players,
+                onlineStatus: 'waiting',
+                moveLog: [],
+            })
+
+            this.roomOption = 'create'
+            this.onlineStatus = 'waiting'
+            this.isHost = true
+            await this.reciveTheData()
+        },
+
+        async joinARoom() {
+
+            this.roomOption = 'join'
+            const docRef = db.collection(this.firebaseRoomName).doc(`${this.tempRoomcode}`);
+
+            try {
+            const doc = await docRef.get();
+            if (doc.exists) {
+                if(doc.data().onlineStatus == 'playing') return alert('This room is closed.')
+
+                this.players = doc.data().players;
+                this.onlineStatus = doc.data().players;
+
+                if (!this.players.includes(this.username)) {
+                this.players.push(
+                    {
+                        name:this.username,
+                        randomString: this.randomString,
+                    }
+                );
+                this.roomCode = this.tempRoomcode
+
+                }
+
+                await docRef.update({
+                    players: this.players,
+                });
+                this.reciveTheData();
+            } else {
+                console.log('No such document!');
+            }
+            } catch (error) {
+            console.log('Error getting document:', error);
+            }
+        },
+
+        reciveTheData(){
+            
+            db.collection(this.firebaseRoomName).doc(`${this.roomCode}`)
+            .onSnapshot((doc) => {
+            
+            this.generalData = doc.data()
+            
+            // joining room and wait until it closes
+            // if(this.currentPage == 'before'){
+            this.players = this.generalData?.players
+            this.onlineStatus = this.generalData?.onlineStatus
+
+            this.winner = this.generalData?.winner
+            // }
+
+
+
+            if(this.onlineStatus == 'playing' || this.onlineStatus == 'distributing') {
+                this.currentPage = 'game'
+                if(this.moveLog.length !== this.generalData?.moveLog) this.synchMoveLog(this.generalData?.moveLog)
+                // this.moveLog = this.generalData?.moveLog
+            }
+            //     // this.deck = this.generalData.deck;
+            //     // this.publicPile = this.generalData.publicPile;
+
+
+            //     // this.lastSubmitBy = this.generalData?.lastSubmitBy
+
+
+            //     // check if the game is overr
+
+
+            //     // this.currentPlayerIndex = this.generalData.currentPlayerIndex
+            //     // this.currentPage = 'game'
+            //     localStorage.setItem('latestRoomCode', null);
+
+                
+            //     // this.isRevolutionGoing = this.generalData.isRevolutionGoing
+            //     // this.isTempRevolutionGoing = this.generalData.isTempRevolutionGoing
+
+            //     // this.gameResults = this.generalData.gameResults
+
+                
+
+            // }
+            
+            })
+        },
+        synchMoveLog(newMoveLog) {
+            newMoveLog.forEach(move => {
+                this.applyUCIMove(move)
+            })
+
+            this.moveLog = newMoveLog
+        },
+
+        async closeTheRoom(){
+
+            if(this.players.length !== 2) return
+
+            const colors = ['black', 'white']
+
+            // shuffle
+            colors.sort(() => Math.random() - 0.5)
+
+            this.players.forEach((player, index) => {
+                player.color = colors[index]
+            })
+
+            this.currentPage = 'game';
+
+            // this.gameResults = []
+
+            this.onlineStatus = 'playing'
+
+            const ref = db.collection(this.firebaseRoomName)
+            ref.doc(`${this.roomCode}`).update({
+                winner: '',
+                totalWinner: '',
+                players: this.players,
+                onlineStatus: this.onlineStatus,
+                isWhiteTurn: true,
+            })
+        },
+
+        generateAvatar() {
+            const randomString = Math.random().toString();
+            return {
+                avatar: window.multiavatar(randomString),
+                randomString: randomString
+            };
+        },
+        generateAvatarSeed() {
+            return Math.random().toString(36).slice(2);
+        },
+
+        regenerate(randomString) {
+            return window.multiavatar(randomString);
+        },
+
+        generateAvatars() {
+            this.tempAvatarCode = null;
+
+            this.avatars = [1, 2, 3, 4, 5,6,7,8,9].map(() => {
+            const randomString = Math.random().toString();
+            return {
+                avatar: window.multiavatar(randomString),
+                randomString: randomString
+            };
+            });
+        },
+        getRandomName() {
+            let randomName;
+            // do {
+                const randomIndex = Math.floor(Math.random() * this.randomNames.length);
+                randomName = this.randomNames[randomIndex];
+            // } while (this.players.some(player => player.name === randomName));
+
+            // this.generateAvatars();
+
+            return randomName;
+        },
+
+        updateMoves(){
+            const ref = db.collection(this.firebaseRoomName)
+            ref.doc(`${this.roomCode}`).update({
+                moveLog: this.moveLog,
+                isWhiteTurn: this.currentTurn == 'white' ? true : false
+            })
+        },
+
     },
     computed: {
         totalTimeInSeconds() {
             return this.whiteTimeInSeconds + this.blackTimeInSeconds;
-        }
+        },
+
+
+        readyToPlay() {
+          const namePattern = /^[^\s!@#$%^&*(),.?":{}|<>]+$/;
+
+          // Check if the username is valid
+          return namePattern.test(this.username) && this.username?.trim() !== '';
+        },
     },
+    // watch: {
+    //     moveLog: {
+    //         handler(newVal) {
+    //             console.log('moveLog changed', newVal)
+
+    //             this.updateMoves()
+    //         },
+    //         deep: true
+    //     }
+    // }
+
 }
 </script>
 
