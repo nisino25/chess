@@ -726,9 +726,27 @@ export default {
             if(this.replayModeOn) this.replayIndex--;
             this.moveLog.pop();
 
+
+
+            
+
+            // Replay all moves in log
+            this.replayAllMoves(this.moveLog)
+            
+
+            // Switch turn back
+            this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white';
+            this.winner = null;
+            this.possibleMoves = [];
+
+            this.updateMoves()
+        },
+
+        replayAllMoves(referMoves){
+            this.moveLog = referMoves;
+
             // Reset board completely
             this.pieces = this.initPieces();
-
 
             // Temporary turn tracker for replaying moves
             let tempTurn = 'white';
@@ -739,9 +757,7 @@ export default {
                 b: 'bishop',
                 q: 'queen',
             };
-
-            // Replay all moves in log
-            this.moveLog.forEach(uci => {
+            referMoves.forEach(uci => {
                 if (uci === 'O-O' || uci === 'O-O-O') {
                     // CASTLING DETECTED
                     const isKingSide = uci === 'O-O';
@@ -790,13 +806,7 @@ export default {
                 // Switch temp turn
                 tempTurn = tempTurn === 'white' ? 'black' : 'white';
             });
-
-            // Switch turn back
-            this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white';
-            this.winner = null;
-            this.possibleMoves = [];
-
-            this.updateMoves()
+            this.currentTurn = tempTurn;
         },
 
         resetBoard(forReplay) {
@@ -1121,7 +1131,7 @@ export default {
 
             if(this.onlineStatus == 'playing' || this.onlineStatus == 'distributing') {
                 this.currentPage = 'game'
-                if(this.moveLog.length !== this.generalData?.moveLog) this.synchMoveLog(this.generalData?.moveLog)
+                if(this.moveLog !== this.generalData?.moveLog) this.replayAllMoves(this.generalData?.moveLog || [])
                 // this.moveLog = this.generalData?.moveLog
             }
             //     // this.deck = this.generalData.deck;
