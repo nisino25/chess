@@ -320,7 +320,12 @@ export default {
         // this.currentPlayerIndex = 0
 
         this.username = this.getRandomName();
+        
         this.devMode = true
+
+        if (window.location.origin === 'https://nisino25-chess.netlify.app') {
+            this.devMode = false
+        }
 
         // this.startTimer()
 
