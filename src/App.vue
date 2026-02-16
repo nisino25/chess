@@ -51,7 +51,7 @@
             <template v-for="(player, index) in players" :key="index">
               <div class="player-list flex items-center gap-2 my-2">
                 <span>{{index +1}}.</span>
-                <div v-html="regenerate(player?.randomString)"></div>
+                <div class="block w-10 aspect-square" v-html="regenerate(player?.randomString)"></div>
                 <p>{{ player.name }}</p>
               </div>
             </template>
@@ -127,7 +127,7 @@
         <h3 v-if="winner" class="font-xl font-bold font-red">Winner: {{ winner }}</h3>
         <hr>
 
-        <div class="max-w-[725px] w-[92.5vw] aspect-square absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-4 border-gray-300 shadow-lg">
+        <div :class="myPlayer.color == 'black' ? 'rotate-180' : ''" class="max-w-[725px] w-[92.5vw] aspect-square absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-4 border-gray-300 shadow-lg">
             <!-- Board squares -->
             <div class="grid grid-cols-8 grid-rows-8 w-full h-full">
                 <div
@@ -153,7 +153,10 @@
                         left: `${piece.col * 12.5}%`
                     }"
                     @click.stop="selectPiece(piece)"
-                    :class="selected && selected.id === piece.id ? 'ring-4 ring-indigo-400' : ''"
+                    :class="[
+                        selected && selected.id === piece.id ? 'ring-4 ring-indigo-400' : '',
+                        myPlayer.color === 'black' ? 'rotate-180' : ''
+                    ]"
                 >
                 <i
                     :class="['fa-solid', `fa-chess-${piece.type}`]"
@@ -207,18 +210,22 @@
             </div>
         </div>
 
-        <div class="timer-container flex justify-between mt-8 absolute px-8 bottom-8 w-full">
-            <div class="p-3 bg-white/80 backdrop-blur-md border border-gray-300 rounded-xl shadow-md">
-                <span>White <i class="fa-solid fa-hourglass-half"></i></span>
-                <p class="text-center">{{ convertTime(whiteTimeInSeconds) }}</p>
+        <div class="info-container">
+            <div :class="getClassForPlayer(opponentPlayer.color)" class="p-3 border rounded-xl shadow-md absolute top-24 left-4">
+                <p>{{ opponentPlayer?.name }}</p>
+                <div class="block w-10 aspect-square my-2 mx-auto" v-html="regenerate(opponentPlayer?.randomString)"></div>
+                <p class="text-center"><i class="fa-solid fa-hourglass-half mr-1"></i>{{ getTimeForColor(opponentPlayer?.color) }}</p>
             </div>
-            <div class="p-3 bg-white/60 backdrop-blur-md border border-gray-300 rounded-xl shadow-md">
+            <div :class="getClassForPlayer(myPlayer.color)" class="p-3 border  rounded-xl shadow-md absolute text-center bottom-12 left-4">
+                <p>{{ myPlayer?.name }}</p>
+                <div class="block w-10 aspect-square my-2 mx-auto" v-html="regenerate(myPlayer?.randomString)"></div>
+                <p class="text-center"><i class="fa-solid fa-hourglass-half mr-1"></i>{{ getTimeForColor(myPlayer?.color) }}</p>
+            </div>
+            <div class="p-3 bg-white/60 backdrop-blur-md border border-gray-300 rounded-xl shadow-md absolute bottom-12 right-4">
                 <span>Total <i class="fa-solid fa-hourglass-half"></i></span>
                 <p class="text-center">{{ convertTime(totalTimeInSeconds) }}</p>
-            </div>
-            <div class="p-3 bg-black/80 backdrop-blur-md border border-gray-300 rounded-xl shadow-md text-white">
-                <span>Black <i class="fa-solid fa-hourglass-half"></i></span>
-                <p class="text-center">{{ convertTime(blackTimeInSeconds) }}</p>
+                <hr>
+                <span class="text-center">#{{ roomCode }}</span>
             </div>
         </div>
 
@@ -362,6 +369,10 @@ export default {
             if (!this.selected) {
                 if(this.currentTurn !== piece.color) {
                     alert("It's not your turn!")
+                    return
+                }
+                if(this.myPlayer.color !== piece.color) {
+                    alert("You can't move opponent's pieces!")
                     return
                 }
                 this.selected = piece
@@ -1010,8 +1021,23 @@ export default {
 
             return `${minutes}:${remainingSeconds.toString().padStart(2, '0')}`
         },
+        getTimeForColor(color) {
+            if(color === 'white') {
+                return this.convertTime(this.whiteTimeInSeconds)
+            } else {
+                return this.convertTime(this.blackTimeInSeconds)
+            }
+        },
 
-        // ---------------------
+        getClassForPlayer(color) {
+            if(color === 'white') {
+                return 'bg-white/80 backdrop-blur-md border-gray-300 text-black'
+            } else {
+                return 'bg-black/80 backdrop-blur-md border-gray-300 text-white'
+            }
+        },
+
+        // ----------------------------
         randomName(){
             this.username = this.getRandomName();
         },
@@ -1019,13 +1045,23 @@ export default {
             this.tempRoomcode = localStorage.getItem('latestRoomCode') || 'No room code found'
         },
         nextRoomOption(option){
-            if(!this.devMode) return
+            if(!this.devMode){
+                if(option == 'create'){
+                    // this.createARoom()
+                    this.roomOption = 'create'
+                }
+                if(option == 'join'){
+                    this.retriveCode();
+                    this.roomOption = 'join'
+                    // this.joinARoom()
+                }
+                return
+            }
             if(option == 'create'){
                 this.createARoom()
             }
             if(option == 'join'){
                 this.retriveCode();
-                if(!this.devMode) return
                 this.joinARoom()
             }
         },
@@ -1122,41 +1158,21 @@ export default {
             // joining room and wait until it closes
             // if(this.currentPage == 'before'){
             this.players = this.generalData?.players
+            let oldStatus = this.onlineStatus
             this.onlineStatus = this.generalData?.onlineStatus
 
             this.winner = this.generalData?.winner
             // }
 
+            if(oldStatus !== 'playing' && this.onlineStatus == 'playing' && !this.isHost){
+                this.startTimer() 
+            }
 
 
             if(this.onlineStatus == 'playing' || this.onlineStatus == 'distributing') {
                 this.currentPage = 'game'
                 if(this.moveLog !== this.generalData?.moveLog) this.replayAllMoves(this.generalData?.moveLog || [])
-                // this.moveLog = this.generalData?.moveLog
             }
-            //     // this.deck = this.generalData.deck;
-            //     // this.publicPile = this.generalData.publicPile;
-
-
-            //     // this.lastSubmitBy = this.generalData?.lastSubmitBy
-
-
-            //     // check if the game is overr
-
-
-            //     // this.currentPlayerIndex = this.generalData.currentPlayerIndex
-            //     // this.currentPage = 'game'
-            //     localStorage.setItem('latestRoomCode', null);
-
-                
-            //     // this.isRevolutionGoing = this.generalData.isRevolutionGoing
-            //     // this.isTempRevolutionGoing = this.generalData.isTempRevolutionGoing
-
-            //     // this.gameResults = this.generalData.gameResults
-
-                
-
-            // }
             
             })
         },
@@ -1186,6 +1202,8 @@ export default {
             // this.gameResults = []
 
             this.onlineStatus = 'playing'
+
+            this.startTimer() 
 
             const ref = db.collection(this.firebaseRoomName)
             ref.doc(`${this.roomCode}`).update({
@@ -1256,6 +1274,14 @@ export default {
           // Check if the username is valid
           return namePattern.test(this.username) && this.username?.trim() !== '';
         },
+
+        myPlayer(){
+            return this.players.find(p => p.name === this.username)
+        },
+
+        opponentPlayer(){
+            return this.players.find(p => p.name !== this.username)
+        }
     },
     // watch: {
     //     moveLog: {
