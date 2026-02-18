@@ -59,72 +59,51 @@
           </template>
         </div>
     </div>
-    <div v-if="currentPage === 'game'" class="p-4 flex flex-col items-center">
-        <div class="flex gap-4 items-center mb-4">
-            <div class="p-4 flex flex-col items-center">
-                 <div
-                     class="flex items-center justify-center gap-2 px-4 py-2 rounded-full text-medium shadow-sm transition"
-                     :class="currentTurn === 'white'
-                         ? 'bg-gray-50 text-gray-900 border border-gray-300'
-                         : 'bg-slate-500 text-white border border-slate-700'"
-                 >
-                     <i class="fa-solid fa-chess"></i>
-                     <span class="uppercase text-center font-large">
-                        <template v-if="!replayModeOn">
-                            {{ moveLog.length }}
-                        </template>
-                        <template v-else>
-                            {{ replayIndex }}/{{ replayMoves.length }}
-                        </template>
-                        <!-- {{ replayMoves?.slice(replayIndex).join(', ') }} -->
-                    </span>
-                 </div>
-             </div>
+    <div v-if="currentPage === 'game'" class="p-4 flex flex-col items-center float-right">
 
-             <div class="grid grid-cols-3 gap-4 p-4 bg-white/60 backdrop-blur-md border border-gray-300 rounded-xl shadow-md">
-                <button
-                    @click="undoMove"
-                    class="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 transition"
-                >
+        <div class="grid grid-cols-3 gap-4 p-4 bg-white/60 backdrop-blur-md border border-gray-300 rounded-xl shadow-md">
+            <button
+                @click="undoMove"
+                class="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 transition"
+            >
                 <i class="fa-solid fa-rotate-left"></i>
-                </button>
-                <button
-                    v-if="replayModeOn"
-                    @click="toggleAutoReplay"
-                    class="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 transition"
+            </button>
+            <button
+                v-if="replayModeOn"
+                @click="toggleAutoReplay"
+                class="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 transition"
+            >
+                <i
+                    class="fa-solid"
+                    :class="isAutoReplay ? 'fa-pause' : 'fa-play'"
+                ></i>
+            </button>
+            <button
+                v-if="replayModeOn"
+                @click="nextMove"
+                class="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 transition"
+            >
+                <i class="fa-solid fa-rotate-right"></i>
+            </button>
+
+            <button
+                    @click="resetBoard"
+                    class="px-4 py-2 bg-red-500 text-white rounded  transition"
                 >
-                    <i
-                        class="fa-solid"
-                        :class="isAutoReplay ? 'fa-pause' : 'fa-play'"
-                    ></i>
+                <i class="fa-solid fa-trash"></i>
                 </button>
+
                 <button
-                    v-if="replayModeOn"
-                    @click="nextMove"
-                    class="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 transition"
+                    @click="replayModal = true"
+                    class="px-4 py-2 bg-green-500 text-white rounded  transition"
                 >
-                    <i class="fa-solid fa-rotate-right"></i>
-                </button>
-
-                <button
-                     @click="resetBoard"
-                     class="px-4 py-2 bg-red-500 text-white rounded  transition"
-                 >
-                    <i class="fa-solid fa-trash"></i>
-                 </button>
-
-                 <button
-                     @click="replayModal = true"
-                     class="px-4 py-2 bg-green-500 text-white rounded  transition"
-                 >
-                    <i class="fas fa-save"></i>
-                 </button>
-                 
-             </div>
-        </div> 
+                <i class="fas fa-save"></i>
+            </button>
+            
+        </div>
 
 
-        <h3 v-if="winner" class="font-xl font-bold font-red">Winner: {{ winner }}</h3>
+        <h3 v-if="winner" class="mt-4 font-xl font-bold text-white">Winner: {{ winner }}!</h3>
         <hr>
 
         <div :class="myPlayer.color == 'black' ? 'rotate-180' : ''" class="max-w-[725px] w-[92.5vw] aspect-square absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 border-4 border-gray-300 shadow-lg">
@@ -211,25 +190,80 @@
         </div>
 
         <div class="info-container">
-            <div :class="getClassForPlayer(opponentPlayer.color)" class="p-3 border rounded-xl shadow-md absolute top-24 left-4">
+            <div :class="getClassForPlayer(opponentPlayer.color)" class="top-16">
                 <p>{{ opponentPlayer?.name }}</p>
                 <div class="block w-10 aspect-square my-2 mx-auto" v-html="regenerate(opponentPlayer?.randomString)"></div>
                 <p class="text-center"><i class="fa-solid fa-hourglass-half mr-1"></i>{{ getTimeForColor(opponentPlayer?.color) }}</p>
             </div>
-            <div :class="getClassForPlayer(myPlayer.color)" class="p-3 border  rounded-xl shadow-md absolute text-center bottom-12 left-4">
+            <div :class="getClassForPlayer(myPlayer.color)" class="bottom-12">
                 <p>{{ myPlayer?.name }}</p>
                 <div class="block w-10 aspect-square my-2 mx-auto" v-html="regenerate(myPlayer?.randomString)"></div>
                 <p class="text-center"><i class="fa-solid fa-hourglass-half mr-1"></i>{{ getTimeForColor(myPlayer?.color) }}</p>
+
+
+                <div class="emoji-container absolute bottom-0 left-[115%]">
+                    <button
+                        @click="showEmojisOption = !showEmojisOption"
+                        class="w-12 h-12 flex items-center justify-center
+                            bg-white/10 hover:bg-white/20
+                            text-white text-xl
+                            rounded-full shadow-lg
+                            transition-all duration-200 active:scale-90"
+                    >
+                        ❤️
+                    </button>
+
+                    <!-- Emoji Popup -->
+                    <transition name="fade">
+                        <div
+                            v-if="showEmojisOption"
+                            class="absolute bottom-14 left-0
+                                bg-white/90 backdrop-blur-md
+                                p-3 rounded-2xl shadow-2xl
+                                grid grid-cols-5 gap-2
+                                w-40"
+                        >
+                            <span
+                                v-for="(emoji, index) in emojiList"
+                                :key="index"
+                                @click="sendEmoji(emoji)"
+                                class="cursor-pointer text-xl
+                                    hover:scale-125 transition-transform duration-150"
+                            >
+                                {{ emoji }}
+                            </span>
+                        </div>
+                    </transition>
+                </div>
             </div>
             <div class="p-3 bg-white/60 backdrop-blur-md border border-gray-300 rounded-xl shadow-md absolute bottom-12 right-4">
-                <span>Total <i class="fa-solid fa-hourglass-half"></i></span>
+                <div class="text-center">
+                    <i class="fa-solid fa-chess mr-1 "></i>
+                     <span class="uppercase text-center font-large">
+                        <template v-if="!replayModeOn">
+                            {{ moveLog.length }}
+                        </template>
+                    </span>
+                </div>
                 <p class="text-center">{{ convertTime(totalTimeInSeconds) }}</p>
                 <hr>
                 <span class="text-center">#{{ roomCode }}</span>
             </div>
+
         </div>
 
     </div>
+    <transition name="fade">
+        <div
+            v-if="showEmoji"
+            class="fixed inset-0 flex items-center justify-center pointer-events-none"
+        >
+            <div class="text-7xl animate-scale">
+                {{ recievedEmoji.emoji }}
+            </div>
+        </div>
+    </transition>
+
 </template>
 
 <script>
@@ -307,6 +341,14 @@ export default {
             developingMode: false,
 
             players: [],
+            showEmojisOption: false,
+            // emojiList: ['😊','😂','😍','👍','👎','🎉','😢','😡','🤔','🙌'],
+            emojiList: [
+    '😏','😈','🤡','💀','🧠','🧂','🐢','🐐','🔥','👀',
+    '🙄','😴','😬','🫠','🎣','🤦','😮‍💨','🥱','🪦','🚩'
+],
+            recievedEmoji: [],
+            showEmoji: false
         }
     },
     mounted() {
@@ -371,6 +413,7 @@ export default {
 
         // Click piece
         selectPiece(piece) {
+            if(this.winner) return;
             if (!this.selected) {
                 if(this.currentTurn !== piece.color) {
                     alert("It's not your turn!")
@@ -457,7 +500,6 @@ export default {
             });
 
             this.moveLog.push(uci);
-            this.updateMoves();
 
             this.playMoveSound();
 
@@ -466,8 +508,14 @@ export default {
                 this.winner = piece.color;
                 alert(`${this.winner} wins!`);
                 alert(this.moveLog.join(',')); // single line UCI log
+
+                this.updateMoves();
                 return;
             }
+
+
+            this.updateMoves();
+
 
             // Switch turn
             this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white';
@@ -823,6 +871,8 @@ export default {
                 tempTurn = tempTurn === 'white' ? 'black' : 'white';
             });
             this.currentTurn = tempTurn;
+
+            this.playMoveSound();
         },
 
         resetBoard(forReplay) {
@@ -1035,11 +1085,16 @@ export default {
         },
 
         getClassForPlayer(color) {
-            if(color === 'white') {
-                return 'bg-white/80 backdrop-blur-md border-gray-300 text-black'
-            } else {
-                return 'bg-black/80 backdrop-blur-md border-gray-300 text-white'
-            }
+            return [
+                'block p-2 border rounded-xl shadow-md absolute text-center left-4 w-[6em]',
+                color === 'white'
+                    ? 'bg-white/80 backdrop-blur-md text-black'
+                    : 'bg-black/80 backdrop-blur-md text-white',
+
+                this.currentTurn === color
+                    ? 'ring-4 ring-yellow-400 shadow-lg shadow-yellow-300/50'
+                    : ''
+            ].join(' ')
         },
 
         // ----------------------------
@@ -1167,6 +1222,11 @@ export default {
             this.onlineStatus = this.generalData?.onlineStatus
 
             this.winner = this.generalData?.winner
+
+
+            if(this.recievedEmoji.length !== (this.generalData?.emojiList?.length || 0)) {
+                this.displayEmoji(this.generalData.emojiList)
+            }
             // }
 
             if(oldStatus !== 'playing' && this.onlineStatus == 'playing' && !this.isHost){
@@ -1176,7 +1236,7 @@ export default {
 
             if(this.onlineStatus == 'playing' || this.onlineStatus == 'distributing') {
                 this.currentPage = 'game'
-                if(this.moveLog !== this.generalData?.moveLog) this.replayAllMoves(this.generalData?.moveLog || [])
+                if(this.moveLog.length !== this.generalData?.moveLog?.length) this.replayAllMoves(this.generalData?.moveLog || [])
             }
             
             })
@@ -1213,10 +1273,9 @@ export default {
             const ref = db.collection(this.firebaseRoomName)
             ref.doc(`${this.roomCode}`).update({
                 winner: '',
-                totalWinner: '',
                 players: this.players,
                 onlineStatus: this.onlineStatus,
-                isWhiteTurn: true,
+                emojiList: [],
             })
         },
 
@@ -1259,13 +1318,36 @@ export default {
         },
 
         updateMoves(){
+            console.log('Updating winner in Firestore...', this.winner)
             const ref = db.collection(this.firebaseRoomName)
             ref.doc(`${this.roomCode}`).update({
                 moveLog: this.moveLog,
-                isWhiteTurn: this.currentTurn == 'white' ? true : false
+                winner: this.winner,
             })
         },
+        sendEmoji(emoji) {
 
+            const newEmojiList = [...(this.generalData?.emojiList || []), { emoji, sender: this.username }]
+
+            const ref = db.collection(this.firebaseRoomName)
+            ref.doc(`${this.roomCode}`).update({
+                emojiList: newEmojiList,
+            })
+
+            this.showEmojisOption = false;
+        },
+        displayEmoji(emojiList) {
+            const latest = emojiList[emojiList.length - 1]
+
+            this.recievedEmoji = latest
+            this.showEmoji = true
+
+            setTimeout(() => {
+                this.showEmoji = false
+            }, 2500)
+        },
+
+        
     },
     computed: {
         totalTimeInSeconds() {
@@ -1339,5 +1421,25 @@ export default {
         background: rgba(50, 120, 220, 0.6) !important;
 
     }
+
+    .fade-enter-active,
+    .fade-leave-active {
+        transition: opacity 0.6s ease;
+    }
+
+    .fade-enter-from,
+    .fade-leave-to {
+        opacity: 0;
+    }
+
+    .animate-scale {
+        animation: pop 0.3s ease;
+    }
+
+    @keyframes pop {
+        0% { transform: scale(0.6); }
+        100% { transform: scale(1); }
+    }
+
 
 </style>
