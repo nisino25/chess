@@ -61,13 +61,13 @@
     </div>
     <div v-if="currentPage === 'game'" class="p-4 flex flex-col items-center float-right">
 
-        <div class="grid grid-cols-3 gap-4 p-4 bg-white/60 backdrop-blur-md border border-gray-300 rounded-xl shadow-md">
-            <button
+        <div class="grid grid-cols-2 gap-4 p-4 bg-white/60 backdrop-blur-md border border-gray-300 rounded-xl shadow-md">
+            <!-- <button
                 @click="undoMove"
                 class="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 transition"
             >
                 <i class="fa-solid fa-rotate-left"></i>
-            </button>
+            </button> -->
             <button
                 v-if="replayModeOn"
                 @click="toggleAutoReplay"
@@ -235,6 +235,52 @@
                         </div>
                     </transition>
                 </div>
+
+                <div class="gif-container absolute top-[0%] left-[115%]">
+                    <button
+                        @click="showGifsOption = !showGifsOption"
+                        class="w-12 h-12 flex items-center justify-center
+                            bg-white/10 hover:bg-white/20
+                            text-white text-xl
+                            rounded-full shadow-lg
+                            transition-all duration-200 active:scale-90"
+                    >
+                        🤡
+                    </button>
+
+                    <!-- Gifs Popup -->
+                     <transition name="fade">
+                        
+                        <div
+                            v-if="showGifsOption"
+                            class="absolute bottom-14 left-[-25vw] w-[80vw]
+                                bg-white/90 backdrop-blur-md
+                                p-3 rounded-2xl shadow-2xl"
+                        >
+                            <div class="grid grid-cols-3 gap-4 mt-6">
+                                <img
+                                    v-for="gif in gifs"
+                                    :key="gif.id"
+                                    :src="gif.images.fixed_height.url"
+                                    class="w-full"
+                                    @click="sendGif(gif)"
+                                />
+                            </div>
+                            <h1 class="text-xl font-bold mb-4 text-black">Giphy Search</h1>
+
+                            <input
+                                v-model="query"
+                                placeholder="Search GIFs..."
+                                class="border p-2 mr-2 mb-2 text-black"
+                            />
+
+                            <button :disabled="gifSearchCount >= gifSearchLimit" @click="searchGifs" class="bg-blue-500 px-4 py-2">
+                                Search({{ gifSearchLimit - gifSearchCount }})
+                            </button>
+
+                        </div>
+                    </transition>
+                </div>
             </div>
             <div class="p-3 bg-white/60 backdrop-blur-md border border-gray-300 rounded-xl shadow-md absolute bottom-12 right-4">
                 <div class="text-center">
@@ -257,9 +303,24 @@
         <div
             v-if="showEmoji"
             class="fixed inset-0 flex items-center justify-center pointer-events-none"
-        >
+            >
             <div class="text-7xl animate-scale">
                 {{ recievedEmoji.emoji }}
+            </div>
+        </div>
+    </transition>
+    <transition>
+
+        <div
+            v-if="showGif"
+            class="fixed inset-0 flex items-center justify-center pointer-events-none"
+            >
+            <div class="text-7xl animate-scale">
+                <img
+                    :src="recievedGif.gif.images.fixed_height.url"
+                    class="w-full"
+                />
+                <!-- {{ recievedGif.gif }} -->
             </div>
         </div>
     </transition>
@@ -269,8 +330,12 @@
 <script>
 import db from './firebase.js';
 import { randomNames } from './name.js';
+// import gifSearch from "vue-gif-search";
 
 export default {
+    // components: {
+    //     gifSearch
+    // },
     name: 'ChessBoard',
     data() {
         return {
@@ -344,11 +409,20 @@ export default {
             showEmojisOption: false,
             // emojiList: ['😊','😂','😍','👍','👎','🎉','😢','😡','🤔','🙌'],
             emojiList: [
-    '😏','😈','🤡','💀','🧠','🧂','🐢','🐐','🔥','👀',
-    '🙄','😴','😬','🫠','🎣','🤦','😮‍💨','🥱','🪦','🚩'
-],
+                '😏','😈','🤡','💀','🧠','🧂','🐢','🐐','🔥','👀',
+                '🙄','😴','😬','🫠','🎣','🤦','😮‍💨','🥱','🪦','🚩'
+            ],
             recievedEmoji: [],
-            showEmoji: false
+            showEmoji: false,
+
+            showGifsOption: false,
+            query: "",
+            gifs: [],
+            apiKey: "EirsrNXP0j8NitRZA94PkcLho9ylNlQ2",
+            gifSearchLimit: 15,
+            gifSearchCount: 0,
+            recievedGif: [],
+            showGif: false,
         }
     },
     mounted() {
@@ -1227,6 +1301,10 @@ export default {
             if(this.recievedEmoji.length !== (this.generalData?.emojiList?.length || 0)) {
                 this.displayEmoji(this.generalData.emojiList)
             }
+
+            if(this.recievedGif.length !== (this.generalData?.gifList?.length || 0)) {
+                this.displayGif(this.generalData.gifList)
+            }
             // }
 
             if(oldStatus !== 'playing' && this.onlineStatus == 'playing' && !this.isHost){
@@ -1276,6 +1354,7 @@ export default {
                 players: this.players,
                 onlineStatus: this.onlineStatus,
                 emojiList: [],
+                gifList: [],
             })
         },
 
@@ -1347,8 +1426,48 @@ export default {
             }, 2500)
         },
 
+        async searchGifs() {
+            if (!this.query) return;
+            // if(this.gifSearchCount >= this.gifSearchLimit) return;
+
+            const url = `https://api.giphy.com/v1/gifs/search?api_key=${this.apiKey}&q=${this.query}&limit=9`;
+            this.gifSearchCount++;
+
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                this.gifs = data.data;
+            } catch (err) {
+                console.error(err);
+            }
+        },
+        sendGif(gif) {
+
+            const newGifList = [...(this.generalData?.gifList || []), { gif, sender: this.username }]
+
+            const ref = db.collection(this.firebaseRoomName)
+            ref.doc(`${this.roomCode}`).update({
+                gifList: newGifList,
+            })
+
+            this.showGifsOption = false;
+        },
+        displayGif(gifList) {
+            const latest = gifList[gifList.length - 1]
+
+            this.recievedGif = latest
+            console.log(this.recievedGif)
+            this.showGif = true
+
+            setTimeout(() => {
+                this.showGif = false
+            }, 3500)
+        },
+
         
+
     },
+
     computed: {
         totalTimeInSeconds() {
             return this.whiteTimeInSeconds + this.blackTimeInSeconds;
