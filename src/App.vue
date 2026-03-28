@@ -221,7 +221,7 @@
                                 bg-white/90 backdrop-blur-md
                                 p-3 rounded-2xl shadow-2xl
                                 grid grid-cols-5 gap-2
-                                w-40"
+                                w-40 z-30"
                         >
                             <span
                                 v-for="(emoji, index) in emojiList"
@@ -243,7 +243,7 @@
                             bg-white/10 hover:bg-white/20
                             text-white text-xl
                             rounded-full shadow-lg
-                            transition-all duration-200 active:scale-90"
+                            transition-all duration-200 active:scale-90 z-10"
                     >
                         🤡
                     </button>
@@ -253,20 +253,22 @@
                         
                         <div
                             v-if="showGifsOption"
-                            class="absolute bottom-14 left-[-25vw] w-[80vw]
-                                bg-white/90 backdrop-blur-md
-                                p-3 rounded-2xl shadow-2xl"
+                            class="absolute bottom-14 left-[-25vw] w-[85vw]
+                                bg-gray-100/95 backdrop-blur-md border border-gray-300
+                                p-3 rounded-2xl shadow-2xl z-20"
                         >
-                            <div class="grid grid-cols-3 gap-4 mt-6">
+
+                            <h1 class="text-xl font-bold text-black">Giphy Search</h1>
+
+                            <div v-if="searchedGifs?.length > 0" class="grid grid-cols-3 gap-4 my-4 max-h-64 overflow-y-auto bg-gray-100/50 border border-gray-300 rounded-lg p-2">
                                 <img
-                                    v-for="gif in gifs"
+                                    v-for="gif in searchedGifs"
                                     :key="gif.id"
                                     :src="gif.images.fixed_height.url"
                                     class="w-full"
                                     @click="sendGif(gif)"
                                 />
                             </div>
-                            <h1 class="text-xl font-bold mb-4 text-black">Giphy Search</h1>
 
                             <input
                                 v-model="query"
@@ -305,7 +307,7 @@
             class="fixed inset-0 flex items-center justify-center pointer-events-none"
             >
             <div class="text-7xl animate-scale">
-                {{ recievedEmoji.emoji }}
+                {{ showEmoji.emoji }}
             </div>
         </div>
     </transition>
@@ -313,11 +315,11 @@
 
         <div
             v-if="showGif"
-            class="fixed inset-0 flex items-center justify-center pointer-events-none"
+            class="fixed inset-0 flex items-start justify-center pt-5 pointer-events-none"
             >
             <div class="text-7xl animate-scale">
                 <img
-                    :src="recievedGif.gif.images.fixed_height.url"
+                    :src="showGif.gif.images.fixed_height.url"
                     class="w-full"
                 />
                 <!-- {{ recievedGif.gif }} -->
@@ -417,7 +419,7 @@ export default {
 
             showGifsOption: false,
             query: "",
-            gifs: [],
+            searchedGifs: [],
             apiKey: "EirsrNXP0j8NitRZA94PkcLho9ylNlQ2",
             gifSearchLimit: 15,
             gifSearchCount: 0,
@@ -1303,6 +1305,8 @@ export default {
             }
 
             if(this.recievedGif.length !== (this.generalData?.gifList?.length || 0)) {
+                console.log("exisintg :" + this.recievedGif.length)
+                console.log("reieing :" + this.generalData?.gifList?.length || 0)
                 this.displayGif(this.generalData.gifList)
             }
             // }
@@ -1416,13 +1420,13 @@ export default {
             this.showEmojisOption = false;
         },
         displayEmoji(emojiList) {
-            const latest = emojiList[emojiList.length - 1]
+            this.recievedEmoji = emojiList
 
-            this.recievedEmoji = latest
-            this.showEmoji = true
+            const latest = emojiList[emojiList.length - 1]
+            this.showEmoji = latest
 
             setTimeout(() => {
-                this.showEmoji = false
+                this.showEmoji = null
             }, 2500)
         },
 
@@ -1430,13 +1434,13 @@ export default {
             if (!this.query) return;
             // if(this.gifSearchCount >= this.gifSearchLimit) return;
 
-            const url = `https://api.giphy.com/v1/gifs/search?api_key=${this.apiKey}&q=${this.query}&limit=9`;
+            const url = `https://api.giphy.com/v1/gifs/search?api_key=${this.apiKey}&q=${this.query}&limit=21`;
             this.gifSearchCount++;
 
             try {
                 const res = await fetch(url);
                 const data = await res.json();
-                this.gifs = data.data;
+                this.searchedGifs = data.data;
             } catch (err) {
                 console.error(err);
             }
@@ -1453,14 +1457,13 @@ export default {
             this.showGifsOption = false;
         },
         displayGif(gifList) {
+            this.recievedGif = gifList
             const latest = gifList[gifList.length - 1]
 
-            this.recievedGif = latest
-            console.log(this.recievedGif)
-            this.showGif = true
+            this.showGif = latest
 
             setTimeout(() => {
-                this.showGif = false
+                this.showGif = null
             }, 3500)
         },
 
@@ -1489,16 +1492,6 @@ export default {
             return this.players.find(p => p.name !== this.username)
         }
     },
-    // watch: {
-    //     moveLog: {
-    //         handler(newVal) {
-    //             console.log('moveLog changed', newVal)
-
-    //             this.updateMoves()
-    //         },
-    //         deep: true
-    //     }
-    // }
 
 }
 </script>
