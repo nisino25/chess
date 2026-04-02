@@ -61,13 +61,13 @@
     </div>
     <div v-if="currentPage === 'game'" class="p-4 flex flex-col items-center float-right">
 
-        <div class="grid grid-cols-2 gap-4 p-4 bg-white/60 backdrop-blur-md border border-gray-300 rounded-xl shadow-md">
-            <!-- <button
+        <div class="grid grid-cols-3 gap-4 p-4 bg-white/60 backdrop-blur-md border border-gray-300 rounded-xl shadow-md">
+            <button
                 @click="undoMove"
                 class="px-4 py-2 bg-indigo-500 text-white rounded hover:bg-indigo-600 transition"
             >
                 <i class="fa-solid fa-rotate-left"></i>
-            </button> -->
+            </button>
             <button
                 v-if="replayModeOn"
                 @click="toggleAutoReplay"
@@ -875,7 +875,7 @@ export default {
             
 
             // Switch turn back
-            this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white';
+            // this.currentTurn = this.currentTurn === 'white' ? 'black' : 'white';
             this.winner = null;
             this.possibleMoves = [];
 
